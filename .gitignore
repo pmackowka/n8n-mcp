@@ -1,5 +1,4 @@
 .env
-.n8n_url
-.n8n_token
+.n8n/
 node_modules/
 dist/

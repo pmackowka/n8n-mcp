@@ -3,9 +3,9 @@
   "mcp": {
     "n8n-mcp": {
       "type": "remote",
-      "url": "{file:.n8n_url}",
+      "url": "{file:.n8n/url}",
       "headers": {
-        "Authorization": "Bearer {file:.n8n_token}"
+        "Authorization": "Bearer {file:.n8n/token}"
       }
     }
   }

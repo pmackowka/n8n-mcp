@@ -25,9 +25,20 @@ Zasady dla agenta AI znajdują się w `AGENTS.md` (automatycznie wczytywany prze
 - [Oficjalna dokumentacja n8n MCP Server](https://docs.n8n.io/advanced-ai/mcp/accessing-n8n-mcp-server/)
 - [Blog n8n — Build and Update Workflows with n8n's MCP Server](https://blog.n8n.io/n8n-mcp-server/)
 
-## Konfiguracja
+## Konfiguracja połączenia
 
-Połączenie jest skonfigurowane w `opencode.json` (projektowy plik OpenCode). Wrażliwe dane (URL, token) są przechowywane w `.env` ignorowanym przez git.
+Połączenie MCP jest zdefiniowane w `opencode.json`. OpenCode wczytuje go automatycznie przy starcie w tym katalogu.
+
+### Pliki konfiguracyjne
+
+| Plik | Wersjonowany | Zawartość |
+|---|---|---|
+| `opencode.json` | ✅ tak | Definicja MCP servera (typ, URL przez `{file:}`, nagłówki) |
+| `.n8n/url` | ❌ nie (gitignored) | Adres URL serwera MCP n8n |
+| `.n8n/token` | ❌ nie (gitignored) | Token autoryzacyjny Bearer |
+| `.env` | ❌ nie (gitignored) | Kopia zapasowa URL + token w formacie zmiennych |
+
+OpenCode używa składni `{file:ścieżka}` do odczytu wrażliwych danych bezpośrednio z plików — nie wymaga to ustawiania zmiennych środowiskowych. Wystarczy utworzyć pliki `.n8n/url` i `.n8n/token` z odpowiednimi wartościami.
 
 
 ## Narzędzia MCP (25 tooli)
