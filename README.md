@@ -29,33 +29,6 @@ Zasady dla agenta AI znajdują się w `AGENTS.md` (automatycznie wczytywany prze
 
 Połączenie jest skonfigurowane w `opencode.json` (projektowy plik OpenCode). Wrażliwe dane (URL, token) są przechowywane w `.env` ignorowanym przez git.
 
-## Oficjalne skile n8n
-
-n8n udostępnia oficjalne skile (SKILL.md) dla agentów AI w swoim repozytorium GitHub:
-- Repozytorium: [github.com/n8n-io/n8n](https://github.com/n8n-io/n8n)
-- Lokalizacja: https://github.com/n8n-io/n8n/tree/master/.claude/plugins/n8n/skills (14 skili)
-- Kopia lokalna: `.claude/plugins/n8n/skills/` w tym projekcie
-- Zgodność: OpenCode, Claude Code
-
-Lista dostępnych skili n8n:
-| Skill | Opis |
-|---|---|
-| `community-pr-review` | Przegląd PR-ów od społeczności |
-| `content-design` | Wskazówki dotyczące projektowania treści |
-| `conventions` | Konwencje kodowania n8n |
-| `create-community-node-lint-rule` | Tworzenie reguł lint dla nodów |
-| `create-issue` | Tworzenie zgłoszeń |
-| `create-pr` | Tworzenie pull requestów |
-| `create-skill` | Tworzenie nowych skili |
-| `design-system` | Wytyczne systemu design |
-| `linear-issue` | Praca z Linear |
-| `loom-transcript` | Transkrypcje Loom |
-| `node-add-oauth` | Dodawanie OAuth do nodów |
-| `protect-endpoints` | Ochrona endpointów |
-| `reproduce-bug` | Reprodukcja błędów |
-| `setup-mcps` | Konfiguracja MCP dla rozwoju n8n |
-
-Skile te są przeznaczone głównie dla programistów rozwijających platformę n8n, ale mogą służyć jako wzorzec do tworzenia własnych skili dla projektu.
 
 ## Narzędzia MCP (25 tooli)
 
