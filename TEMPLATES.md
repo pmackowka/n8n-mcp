@@ -54,7 +54,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 - **Wyszukiwanie:** Top 50 HN stories → szczegóły → filtr po tytułach → sort po score → top 5
 - **Tłumaczenie:** Tytuły pozostawione w oryginale (EN), struktura danych w języku polskim
 - **Output:** Węzeł NoOp (gotowy do podłączenia Data Table)
-- **Kod źródłowy:** `hn-top5.ts`
+- **Kod źródłowy:** `workflows/hn-top5/workflow.ts`
 - **Data dodania:** 2026-05-10
 
 ---

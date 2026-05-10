@@ -11,6 +11,13 @@ Ten projekt łączy model językowy z instancją n8n przez protokół MCP.
 - Token: zmienna środowiskowa `N8N_MCP_TOKEN`
 - Konfiguracja MCP: `opencode.json` w katalogu głównym
 
+## Architektura projektu
+
+- Każdy workflow tworzy w katalogu `workflows/<nazwa-workflowu>/workflow.ts`
+- Do kopiowania szablonu nowego workflowu: `workflows/_template/workflow.ts`
+- Po utworzeniu workflowu zarejestruj go w `TEMPLATES.md`
+- Współdzielone helpery (jeśli potrzebne): `shared/`
+
 ## Dokumentacja
 
 - https://docs.n8n.io/advanced-ai/mcp/accessing-n8n-mcp-server/
