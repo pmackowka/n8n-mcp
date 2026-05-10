@@ -12,6 +12,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 | 2 | **Sieć Agentów AI (Deepseek)** | `Sus7cpF3VSkhwbgl` | Chat Trigger | 11 | DeepSeek, Gmail (GCP), Google Calendar (GCP), Tavily | 2026-05-06 |
 | 3 | **Query GA4 data with Google Gemini AI in a Slack channel** | `b6dM5vmG0oZ0z8sh` | Slack Trigger | 8 | Slack, Google Analytics OAuth2, Google Gemini (AI Studio) | 2026-05-07 |
 | 4 | **My workflow** (pusty) | `gpvpszunXxwjHvwl` | brak | 0 | brak | 2026-05-08 |
+| 5 | **HN Top 5 — poniedziałek 09:30** | `6jZjcgs6k9yOrO7k` | Schedule Trigger | 4 | brak | 2026-05-10 |
 
 ---
 
@@ -45,11 +46,23 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 ### 4. My workflow (pusty)
 - Pusty workflow gotowy do wypełnienia
 
+### 5. HN Top 5 — poniedziałek 09:30
+- **Źródło:** Zbudowany od podstaw przez MCP
+- **Struktura:** Schedule → HTTP (topstories) → Code (fetch+filter) → Code (translate)
+- **Trigger:** Co poniedziałek o 09:30
+- **Filtrowane frazy:** OpenCode, Cloud Code, OpenRouter, OpenAI Codex, Antigravity, @warpdotdev, Gemini CLI, @stape_io, n8n
+- **Wyszukiwanie:** Top 50 HN stories → szczegóły → filtr po tytułach → sort po score → top 5
+- **Tłumaczenie:** Tytuły pozostawione w oryginale (EN), struktura danych w języku polskim
+- **Output:** Węzeł NoOp (gotowy do podłączenia Data Table)
+- **Kod źródłowy:** `hn-top5.ts`
+- **Data dodania:** 2026-05-10
+
 ---
 
 ## Zmiany
 
 | Data | Opis |
-|---|---|
+|---|---|---|
+| 2026-05-10 | Dodano #5: HN Top 5 — poniedziałek 09:30. Stworzony przez MCP. |
 | 2026-05-08 | Rozszerzono o wszystkie 4 workflowy. Dodano szczegóły konfiguracji. |
 | 2026-05-07 | Utworzono plik. Dodano szablon #1: Query GA4 with Gemini in Slack |
