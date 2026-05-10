@@ -18,6 +18,8 @@ Dokumentacja: https://docs.n8n.io/advanced-ai/mcp/accessing-n8n-mcp-server/
 
 Projekt konfigurujący połączenie między klientem MCP (OpenCode / DeepSeek) a instancją n8n przez protokół MCP (Model Context Protocol) z transportem HTTP.
 
+Zasady dla agenta AI znajdują się w `AGENTS.md` (automatycznie wczytywany przez OpenCode).
+
 ## Dokumentacja
 
 - [Oficjalna dokumentacja n8n MCP Server](https://docs.n8n.io/advanced-ai/mcp/accessing-n8n-mcp-server/)
