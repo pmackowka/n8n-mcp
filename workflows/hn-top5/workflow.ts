@@ -1,18 +1,20 @@
-import { workflow, node, trigger } from '@n8n/workflow-sdk';
+import { workflow, node, trigger, expr } from '@n8n/workflow-sdk';
 
 const scheduleTrigger = trigger({
   type: 'n8n-nodes-base.scheduleTrigger',
   version: 1.3,
   config: {
     name: 'Co poniedzialek 09:30',
-    rule: {
-      interval: [{
-        field: 'weeks',
-        weeksInterval: 1,
-        triggerAtDay: [1],
-        triggerAtHour: 9,
-        triggerAtMinute: 30
-      }]
+    parameters: {
+      rule: {
+        interval: [{
+          field: 'weeks',
+          weeksInterval: 1,
+          triggerAtDay: [1],
+          triggerAtHour: 9,
+          triggerAtMinute: 30
+        }]
+      }
     },
     position: [240, 300]
   },
@@ -24,87 +26,175 @@ const fetchTopStories = node({
   version: 4.4,
   config: {
     name: 'Pobierz top stories HN',
-    method: 'GET',
-    url: 'https://hacker-news.firebaseio.com/v0/topstories.json',
-    authentication: 'none',
-    options: {},
-    position: [520, 300]
+    parameters: {
+      method: 'GET',
+      url: 'https://hacker-news.firebaseio.com/v0/topstories.json',
+      authentication: 'none',
+      options: {}
+    },
+    alwaysOutputData: true,
+    position: [480, 300]
   },
-  output: [{}]
+  output: [{ storyIds: [1, 2, 3] }]
 });
 
-const filterAndFetchDetails = node({
+const limitStories = node({
+  type: 'n8n-nodes-base.limit',
+  version: 1,
+  config: {
+    name: 'Pierwsze 30 ID',
+    parameters: {
+      maxItems: 30,
+      keep: 'firstItems'
+    },
+    position: [720, 300]
+  },
+  output: [{ storyId: 0 }]
+});
+
+const fetchStoryDetails = node({
+  type: 'n8n-nodes-base.httpRequest',
+  version: 4.4,
+  config: {
+    name: 'Pobierz detale HN',
+    parameters: {
+      method: 'GET',
+      url: expr('https://hacker-news.firebaseio.com/v0/item/{{ $json }}.json'),
+      authentication: 'none',
+      options: {}
+    },
+    position: [960, 300]
+  },
+  output: [{ id: 1, title: '', by: '', score: 0, descendants: 0, url: '' }]
+});
+
+const filterAndRank = node({
   type: 'n8n-nodes-base.code',
   version: 2,
   config: {
-    name: 'Filtruj i pobierz szczegoly',
-    language: 'javascript',
-    executeOnce: true,
-    code: `
-const keywords = ['opencode', 'cloud code', 'openrouter', 'openai codex', 'antigravity', 'warpdotdev', 'gemini cli', 'stape_io', 'n8n'];
+    name: 'Filtruj i ranking',
+    parameters: {
+      mode: 'runOnceForAllItems',
+      language: 'javaScript',
+      jsCode: `
+var keywords = ['opencode', 'openrouter', 'openai', 'codex', 'gemini', 'stape_io', 'n8n', 'cursor', 'copilot', 'claude', 'llm', 'gpt', 'agent', 'mcp', 'aider', 'devin', 'langchain', 'llama', 'mistral', 'perplexity', 'vibe coding', 'windsurf', 'bolt.new', 'lovable'];
 
-const inputData = $input.first().json;
-const storyIds = Array.isArray(inputData) ? inputData : (inputData.data || []);
+var stories = $input.all().map(function(item) { return item.json; });
 
-const topIds = storyIds.slice(0, 50);
-
-const stories = [];
-for (const id of topIds) {
-  try {
-    const response = await $http.get('https://hacker-news.firebaseio.com/v0/item/' + id + '.json');
-    if (response && response.title) {
-      stories.push(response);
+var filtered = [];
+for (var s = 0; s < stories.length; s++) {
+  var title = (stories[s].title || '').toLowerCase();
+  for (var k = 0; k < keywords.length; k++) {
+    if (title.indexOf(keywords[k].toLowerCase()) !== -1) {
+      filtered.push(stories[s]);
+      break;
     }
-  } catch (e) {}
+  }
 }
 
-const filtered = stories.filter(s => {
-  const title = (s.title || '').toLowerCase();
-  return keywords.some(k => title.includes(k.toLowerCase()));
-});
+filtered.sort(function(a, b) { return (b.score || 0) - (a.score || 0); });
+var top5 = filtered.slice(0, 5);
 
-const top5 = filtered.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5);
-
-return top5.map(s => ({
-  json: {
-    title: s.title,
-    url: s.url || 'https://news.ycombinator.com/item?id=' + s.id,
-    score: s.score || 0,
-    author: s.by || 'unknown',
-    comments: s.descendants || 0
-  }
-}));
+var result = [];
+for (var t = 0; t < top5.length; t++) {
+  result.push({
+    json: {
+      title: top5[t].title,
+      url: top5[t].url || 'https://news.ycombinator.com/item?id=' + top5[t].id,
+      score: top5[t].score || 0,
+      author: top5[t].by || 'unknown',
+      comments: top5[t].descendants || 0
+    }
+  });
+}
+return result;
 `
+    },
+    position: [1200, 300]
   },
   output: [{ title: '', url: '', score: 0, author: '', comments: 0 }]
 });
 
-const translateToPolish = node({
+const translateTitle = node({
+  type: 'n8n-nodes-base.httpRequest',
+  version: 4.4,
+  config: {
+    name: 'Tlumacz tytul',
+    parameters: {
+      method: 'GET',
+      url: expr('https://api.mymemory.translated.net/get?q={{ encodeURIComponent($json.title) }}&langpair=en|pl'),
+      authentication: 'none',
+      options: {}
+    },
+    position: [1440, 300]
+  },
+  output: [{ responseData: { translatedText: '', match: 0 } }]
+});
+
+const formatResults = node({
   type: 'n8n-nodes-base.code',
   version: 2,
   config: {
-    name: 'Tlumacz na polski',
-    language: 'javascript',
-    executeOnce: true,
-    code: `
-return $input.all().map(item => ({
-  json: {
-    tytul: item.json.title,
-    tytul_pl: item.json.title,
-    url: item.json.url,
-    punkty: item.json.score,
-    autor: item.json.author,
-    komentarze: item.json.comments,
-    data: new Date().toISOString().split('T')[0]
-  }
-}));
+    name: 'Formatuj wyniki',
+    parameters: {
+      mode: 'runOnceForAllItems',
+      language: 'javaScript',
+      jsCode: `
+var translations = $input.all().map(function(i) { return i.json; });
+var originals = $('Filtruj i ranking').all().map(function(i) { return i.json; });
+
+var result = [];
+for (var idx = 0; idx < originals.length; idx++) {
+  var orig = originals[idx];
+  var trans = translations[idx] || {};
+  var translatedText = (trans.responseData && trans.responseData.translatedText) || orig.title;
+
+  result.push({
+    json: {
+      tytul_pl: translatedText,
+      tytul_en: orig.title,
+      url: orig.url || 'https://news.ycombinator.com/item?id=' + orig.id,
+      punkty: orig.score || 0,
+      autor: orig.author || 'unknown',
+      komentarze: orig.comments || 0,
+      data: new Date().toISOString().split('T')[0]
+    }
+  });
+}
+return result;
 `
+    },
+    position: [1680, 300]
   },
-  output: [{ tytul: '', tytul_pl: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '' }]
+  output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '' }]
+});
+
+const saveToTable = node({
+  type: 'n8n-nodes-base.dataTable',
+  version: 1.1,
+  config: {
+    name: 'Zapisz do tabeli',
+    parameters: {
+      resource: 'row',
+      operation: 'insert',
+      dataTableId: { mode: 'id', value: 'Iy9nbjya69dnFGOf' },
+      columns: {
+        mappingMode: 'autoMapInputData',
+        value: null
+      },
+      options: {}
+    },
+    position: [1920, 300]
+  },
+  output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '', id: 1, createdAt: '2026-05-10' }]
 });
 
 export default workflow('hn-top5-monday', 'HN Top 5 - poniedzialek 09:30')
   .add(scheduleTrigger)
   .to(fetchTopStories)
-  .to(filterAndFetchDetails)
-  .to(translateToPolish);
+  .to(limitStories)
+  .to(fetchStoryDetails)
+  .to(filterAndRank)
+  .to(translateTitle)
+  .to(formatResults)
+  .to(saveToTable);
