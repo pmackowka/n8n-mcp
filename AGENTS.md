@@ -17,6 +17,7 @@ Ten projekt łączy model językowy z instancją n8n przez protokół MCP.
 - Do kopiowania szablonu nowego workflowu: `workflows/_template/workflow.ts`
 - Po utworzeniu workflowu zarejestruj go w `TEMPLATES.md`
 - Współdzielone helpery (jeśli potrzebne): `shared/`
+- Testowe workflowy (utworzone podczas debugowania/poprawek) **zawsze archiwizuj** (`archive_workflow`) po zakończeniu sesji
 
 ## Dokumentacja
 
