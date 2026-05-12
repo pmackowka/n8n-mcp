@@ -1,4 +1,4 @@
-import { workflow, node, trigger, expr } from '@n8n/workflow-sdk';
+import { workflow, node, trigger, expr, newCredential } from '@n8n/workflow-sdk';
 
 const scheduleTrigger = trigger({
   type: 'n8n-nodes-base.scheduleTrigger',
@@ -125,6 +125,38 @@ const translateTitle = node({
   output: [{ responseData: { translatedText: '', match: 0 } }]
 });
 
+const summarizeWithGemini = node({
+  type: '@n8n/n8n-nodes-langchain.googleGemini',
+  version: 1.2,
+  config: {
+    name: 'Generuj streszczenie',
+    parameters: {
+      resource: 'text',
+      operation: 'message',
+
+      messages: {
+        values: [{
+          content: expr('Podsumuj ponizszy artykul w jezyku polskim w 2-3 zdaniach. Skup sie na kluczowych wnioskach.\n\nTytul: {{ $("Filtruj i ranking").item.json.title }}\n\nURL: {{ $("Filtruj i ranking").item.json.url }}'),
+          role: 'user'
+        }]
+      },
+      simplify: true,
+      builtInTools: {
+        urlContext: true
+      },
+      options: {
+        temperature: 0.4,
+        maxOutputTokens: 1024
+      }
+    },
+    credentials: {
+      googlePalmApi: newCredential('Google Gemini (AI Studio)')
+    },
+    position: [1440, 300]
+  },
+  output: [{ response: '' }]
+});
+
 const formatResults = node({
   type: 'n8n-nodes-base.code',
   version: 2,
@@ -134,14 +166,21 @@ const formatResults = node({
       mode: 'runOnceForAllItems',
       language: 'javaScript',
       jsCode: `
-var translations = $input.all().map(function(i) { return i.json; });
+var translations = $('Tlumacz tytul').all().map(function(i) { return i.json; });
 var originals = $('Filtruj i ranking').all().map(function(i) { return i.json; });
+var summaries = $('Generuj streszczenie').all().map(function(i) { return i.json; });
 
 var result = [];
 for (var idx = 0; idx < originals.length; idx++) {
   var orig = originals[idx];
   var trans = translations[idx] || {};
   var translatedText = (trans.responseData && trans.responseData.translatedText) || orig.title;
+
+  var summary = summaries[idx] || {};
+  var streszczenie = '';
+  if (summary.content && summary.content.parts && summary.content.parts.length > 0) {
+    streszczenie = summary.content.parts[0].text || '';
+  }
 
   result.push({
     json: {
@@ -151,16 +190,17 @@ for (var idx = 0; idx < originals.length; idx++) {
       punkty: orig.score || 0,
       autor: orig.author || 'unknown',
       komentarze: orig.comments || 0,
-      data: new Date().toISOString().split('T')[0]
+      data: new Date().toISOString().split('T')[0],
+      streszczenie_pl: streszczenie
     }
   });
 }
 return result;
 `
     },
-    position: [1440, 300]
+    position: [1680, 300]
   },
-  output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '' }]
+  output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '', streszczenie_pl: '' }]
 });
 
 const saveToTable = node({
@@ -178,9 +218,9 @@ const saveToTable = node({
       },
       options: {}
     },
-    position: [1680, 300]
+    position: [1920, 300]
   },
-  output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '', id: 1, createdAt: '2026-05-10' }]
+  output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '', streszczenie_pl: '', id: 1, createdAt: '2026-05-12' }]
 });
 
 export default workflow('hn-top5-monday', 'HN Top 5 - poniedzialek 09:30')
@@ -189,5 +229,6 @@ export default workflow('hn-top5-monday', 'HN Top 5 - poniedzialek 09:30')
   .to(fetchStoryDetails)
   .to(filterAndRank)
   .to(translateTitle)
+  .to(summarizeWithGemini)
   .to(formatResults)
   .to(saveToTable);

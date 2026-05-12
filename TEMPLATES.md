@@ -12,7 +12,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 | 2 | **Sieć Agentów AI (Deepseek)** | `Sus7cpF3VSkhwbgl` | Chat Trigger | 11 | DeepSeek, Gmail (GCP), Google Calendar (GCP), Tavily | 2026-05-06 |
 | 3 | **Query GA4 data with Google Gemini AI in a Slack channel** | `b6dM5vmG0oZ0z8sh` | Slack Trigger | 8 | Slack, Google Analytics OAuth2, Google Gemini (AI Studio) | 2026-05-07 |
 | 4 | **My workflow** (pusty) | `gpvpszunXxwjHvwl` | brak | 0 | brak | 2026-05-08 |
-| 5 | **HN Top 5 — poniedziałek 09:30** | `KmPY4nLRoV6JwYmz` | Schedule Trigger | 7 | brak | 2026-05-10 (przebud. 2026-05-12) |
+| 5 | **HN Top 5 — poniedziałek 09:30** | `KmPY4nLRoV6JwYmz` | Schedule Trigger | 8 | Google Gemini (AI Studio) | 2026-05-10 (przebud. 2026-05-12) |
 
 ---
 
@@ -48,12 +48,14 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 
 ### 5. HN Top 5 — poniedziałek 09:30
 - **Źródło:** Zbudowany od podstaw przez MCP
-- **Struktura:** Schedule → HTTP (topstories) → HTTP (detale HN ×500, batch 10) → Code (filtr+ranking) → HTTP (tłumaczenie ×5) → Code (formatowanie) → Data Table (zapis)
+- **Struktura:** Schedule → HTTP (topstories) → HTTP (detale HN ×500, batch 10) → Code (filtr+ranking) → HTTP (tłumaczenie ×5) → Google Gemini (streszczenie ×5) → Code (formatowanie) → Data Table (zapis)
 - **Trigger:** Co poniedziałek o 09:30
 - **Filtrowane frazy:** opencode, cloud code, openrouter, openai, codex, antigravity, warpdotdev, gemini, stape_io, n8n
 - **Wyszukiwanie:** Top 500 HN → fetch szczegółów wszystkich 500 (batch 10) → filtr po tytułach → sort po score → top 5
 - **Tłumaczenie:** MyMemory API (EN→PL), z fallbackiem do oryginalnego tytułu
-- **Output:** Data Table "HN Top 5 - Artykuly" (ID: `Iy9nbjya69dnFGOf`)
+- **Streszczenie:** Google Gemini (`text:message`, model domyślny, `urlContext: true`) generuje 2-3 zdaniowe polskie podsumowanie każdego artykułu
+- **Output:** Data Table "HN Top 5 - Artykuly" (ID: `Iy9nbjya69dnFGOf`), 8 kolumn: `tytul_pl`, `tytul_en`, `url`, `punkty`, `autor`, `komentarze`, `data`, `streszczenie_pl`
+- **Kredencjały:** Google Gemini (AI Studio) przez `@n8n/n8n-nodes-langchain.googleGemini`
 - **Kod źródłowy:** `workflows/hn-top5/workflow.ts`
 - **Data dodania:** 2026-05-10 (przebudowany 2026-05-12)
 
@@ -63,7 +65,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 
 | Data | Opis |
 |---|---|---|
-| 2026-05-12 | Przebudowano #5: usunięto Limit node, filtrowanie z wszystkich 500 ID (batch 10), zawężono słowa kluczowe do ulubionych narzędzi. 8→7 nodów. |
+| 2026-05-12 | Przebudowano #5: dodano Google Gemini do generowania polskich streszczeń artykułów (`urlContext`). 7→8 nodów. Dodano kolumnę `streszczenie_pl` do Data Table. |
 | 2026-05-10 | Dodano #5: HN Top 5 — poniedziałek 09:30. Stworzony przez MCP. |
 | 2026-05-10 | Przebudowano #5: 4→8 nodów. Naprawiono: parametry HTTP pod `parameters`, `rule` w `parameters` trigera, Code node z `mode`/`jsCode` zamiast `executeOnce`/`code`, dodano HTTP Request zamiast `$http` w kodzie, dodano Data Table i tłumaczenie przez MyMemory. |
 | 2026-05-08 | Rozszerzono o wszystkie 4 workflowy. Dodano szczegóły konfiguracji. |

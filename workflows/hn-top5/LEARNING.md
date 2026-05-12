@@ -9,27 +9,29 @@
 5. [Node 3: HTTP Request — szczegóły 500 artykułów](#5-node-3-http-request)
 6. [Node 4: Code — filtrowanie 500 i top 5](#6-node-4-code)
 7. [Node 5: HTTP Request — tłumaczenie](#7-node-5-http-request)
-8. [Node 6: Code — formatowanie danych](#8-node-6-code)
-9. [Node 7: Data Table — zapis danych](#9-node-7-data-table)
-10. [Workflow composition — łączenie nodów](#10-workflow-composition)
-11. [Kluczowe koncepcje n8n](#11-kluczowe-koncepcje-n8n)
-12. [Lessons Learned](#12-lessons-learned)
+8. [Node 6: Google Gemini — streszczenie](#8-node-6-google-gemini)
+9. [Node 7: Code — formatowanie danych](#9-node-7-code)
+10. [Node 8: Data Table — zapis danych](#10-node-8-data-table)
+11. [Workflow composition — łączenie nodów](#11-workflow-composition)
+12. [Kluczowe koncepcje n8n](#12-kluczowe-koncepcje-n8n)
+13. [Lessons Learned](#13-lessons-learned)
 
 ---
 
 ## 1. Overview
 
-Workflow uruchamia się w każdy poniedziałek o 09:30. Łączy się z Hacker News, pobiera **wszystkie 500** najgorętszych artykułów, dla każdego pobiera szczegóły, filtruje po słowach kluczowych AI/devtools, wybiera **top 5 spośród wszystkich 500**, tłumaczy tytuły na polski i zapisuje do tabeli.
+Workflow uruchamia się w każdy poniedziałek o 09:30. Łączy się z Hacker News, pobiera **wszystkie 500** najgorętszych artykułów, dla każdego pobiera szczegóły, filtruje po słowach kluczowych AI/devtools, wybiera **top 5 spośród wszystkich 500**, tłumaczy tytuły na polski, generuje polskie streszczenia przez Google Gemini i zapisuje do tabeli.
 
 Przepływ danych:
 
 ```
 Trigger (pn 09:30) → HTTP (pobierz 500 ID) → HTTP (szczegóły × 500)
 → Code (filtruj 500 po słowach kluczowych → top 5 po score)
-→ HTTP (tłumacz tytuły × 5) → Code (formatuj) → Data Table (zapisz)
+→ HTTP (tłumacz tytuły × 5) → Gemini (streszczenie × 5)
+→ Code (formatuj) → Data Table (zapisz)
 ```
 
-Kluczowa zmiana: workflow **nie ogranicza do 30** przed filtrowaniem. Przetwarza wszystkie 500 ID, co daje lepsze wyniki — top 5 spośród pełnego zbioru, nie tylko pierwszych 30.
+Kluczowe zmiany: workflow **nie ogranicza do 30** przed filtrowaniem — przetwarza wszystkie 500 ID, co daje lepsze wyniki (top 5 spośród pełnego zbioru). Oraz **Google Gemini** z `urlContext` generuje polskie streszczenia na podstawie rzeczywistej treści artykułów.
 
 ---
 
@@ -46,7 +48,7 @@ Główne funkcje SDK:
 | `expr()` | Tworzy wyrażenie `{{ }}` do dynamicznych wartości |
 | `workflow()` | Tworzy workflow i łączy nody w całość |
 | `newCredential()` | Referencja do istniejącego credencjału |
-| `languageModel()` | Model językowy (np. DeepSeek, OpenAI) |
+| `languageModel()` | Model językowy (np. DeepSeek, OpenAI) — patrz uwaga: Google Gemini używa `node()` z `@n8n/n8n-nodes-langchain.googleGemini`, **nie** `languageModel()` |
 | `merge(), ifElse(), splitInBatches()` | Rozgałęzienia, pętle |
 
 Workflow buduje się przez łańcuch `.add(trigger).to(node1).to(node2)...`. `.add()` dodaje pierwszy node (START), `.to()` tworzy połączenie. Każdy node ma `type`, `version`, `config.name` i `config.parameters` (wszystkie parametry specyficzne).
@@ -58,7 +60,7 @@ Workflow buduje się przez łańcuch `.add(trigger).to(node1).to(node2)...`. `.a
 Trigger czasowy — uruchamia workflow w każdy poniedziałek o 09:30.
 
 | Parametr | Wartość | Znaczenie |
-|---|---|---|
+|---|---|---|---|
 | `field` | `weeks` | Jednostka: tygodnie |
 | `weeksInterval` | `1` | Co 1 tydzień |
 | `triggerAtDay` | `[1]` | 1 = poniedziałek |
@@ -127,7 +129,7 @@ HN API dla pojedynczego artykułu zwraca: `id`, `title`, `by` (autor), `score` (
 
 ## 7. Node 5: HTTP Request
 
-**Trzecie zapytanie HTTP** — MyMemory API (darmowe tłumaczenie, ~5000 znaków/dzień). Tłumaczy tytuły z angielskiego na polski. Wykonuje się **5 razy**.
+**Trzecie zapytanie HTTP** — MyMemory API (darmowe tłumaczenie, ~5000 znaków/dzień). Tłumaczy tytuły z angielskiego na polski. Wykonuje się **do 5 razy**.
 
 - `url: expr('https://api.mymemory.translated.net/get?q={{ encodeURIComponent($json.title) }}&langpair=en|pl')`
 - `encodeURIComponent()` — koduje znaki specjalne w URL (spacja → `%20`)
@@ -138,41 +140,64 @@ MyMemory zwraca: `responseData.translatedText` i `responseData.match` (dopasowan
 
 ---
 
-## 8. Node 6: Code
+## 8. Node 6: Google Gemini
 
-**Drugi Code node** — łączy oryginalne dane z przetłumaczonymi tytułami i mapuje na polskie nazwy kolumn Data Table.
+**Google Gemini** — generuje polskie streszczenie każdego artykułu. Wykonuje się **do 5 razy**, raz na każdy artykuł.
 
-**Co robi kod?**
-1. Pobiera tłumaczenia z poprzednika przez `$input.all()`
-2. Pobiera oryginały przez **`$('Filtruj i ranking').all()`** — sięga do wcześniejszego noda po nazwie
-3. Łączy po indeksie (zakłada tę samą kolejność)
-4. Jeśli MyMemory zawiódł → fallback do oryginalnego tytułu
-5. Tworzy strukturę: `tytul_pl`, `tytul_en`, `url`, `punkty`, `autor`, `komentarze`, `data`
+- `type: '@n8n/n8n-nodes-langchain.googleGemini'` — dedykowany node do Google Gemini
+- `resource: 'text'`, `operation: 'message'` — tryb tekstowego chat completion
+- `modelId` — domyślny model (obecnie `models/gemini-3-flash-preview`)
+- `messages.values[0].content` — prompt z tytułem i URL-em artykułu (referencja do `$("Filtruj i ranking")` przez `$("NazwaNoda").item.json`)
+- `simplify: true` — upraszcza odpowiedź do zwięzłego formatu
+- `builtInTools.urlContext: true` — pozwala Gemini samodzielnie odczytać treść spod URL-a
+- `options.temperature: 0.4` — niska temperatura = bardziej deterministyczne odpowiedzi
+- `newCredential('Google Gemini (AI Studio)')` — referencja do istniejącego kredencjału Google Gemini
 
-**Dlaczego polskie nazwy?** `autoMapInputData` w Data Table dopasowuje pola do kolumn po nazwie.
+Google Gemini zwraca strukturę: `{ content: { parts: [ { text: "streszczenie..." } ] } }`. Node `@n8n/n8n-nodes-langchain.googleGemini` to zwykły node n8n (nie LangChain Chain), więc działa w liniowym przepływie — przyjmuje itemy i zwraca itemy.
+
+**Kluczowa zmiana w stosunku do oryginalnego planu:** Zamiast osobnego HTTP Request + Code do pobierania i wyciągania treści artykułów, Gemini używa wbudowanego narzędzia `urlContext` do samodzielnego odczytania URL-a. Eliminuje to problem z Cloudflare (Gemini czyta ze swojej infrastruktury) i upraszcza workflow o 2 nod-y.
 
 ---
 
-## 9. Node 7: Data Table
+## 9. Node 7: Code
 
-Zapisuje 5 itemów jako nowe wiersze w tabeli "HN Top 5 - Artykuly".
+**Trzeci Code node** — łączy oryginalne dane z przetłumaczonymi tytułami i streszczeniami Gemini, mapuje na polskie nazwy kolumn Data Table.
+
+**Co robi kod?**
+1. Pobiera tłumaczenia przez **`$('Tlumacz tytul').all()`**
+2. Pobiera oryginały przez **`$('Filtruj i ranking').all()`**
+3. Pobiera streszczenia przez **`$('Generuj streszczenie').all()`**
+4. Łączy po indeksie (zakłada tę samą kolejność)
+5. Jeśli MyMemory zawiódł → fallback do oryginalnego tytułu
+6. Wyciąga tekst odpowiedzi Gemini z `content.parts[0].text`
+7. Tworzy strukturę: `tytul_pl`, `tytul_en`, `url`, `punkty`, `autor`, `komentarze`, `data`, `streszczenie_pl`
+
+**Dlaczego polskie nazwy?** `autoMapInputData` w Data Table dopasowuje pola do kolumn po nazwie.
+
+**Dlaczego `$('NazwaNoda').all()` zamiast `$input.all()`?** Ponieważ node nie jest bezpośrednim następnikiem wszystkich źródeł danych — tłumaczenia pochodzą z HTTP, oryginały z Code, streszczenia z Gemini. `$('NazwaNoda')` pozwala sięgnąć do dowolnego wcześniejszego noda po nazwie.
+
+---
+
+## 10. Node 8: Data Table
+
+Zapisuje do 5 itemów jako nowe wiersze w tabeli "HN Top 5 - Artykuly".
 
 - `resource: 'row'` — pracujemy na wierszach
 - `operation: 'insert'` — wstawiamy nowe
 - `dataTableId: { mode: 'id', value: 'Iy9nbjya69dnFGOf' }` — identyfikator tabeli
 - `columns: { mappingMode: 'autoMapInputData', value: null }` — automatyczne mapowanie po nazwie
 
-Tabela: `tytul_pl` (string), `tytul_en` (string), `url` (string), `punkty` (number), `autor` (string), `komentarze` (number), `data` (string). Data Table dodaje `id`, `createdAt`, `updatedAt`.
+Tabela: `tytul_pl` (string), `tytul_en` (string), `url` (string), `punkty` (number), `autor` (string), `komentarze` (number), `data` (string), `streszczenie_pl` (string). Data Table dodaje `id`, `createdAt`, `updatedAt`.
 
 ---
 
-## 10. Workflow composition
+## 11. Workflow composition
 
 ```
-Trigger (.add) → HTTP (.to) → HTTP (.to) → Code (.to) → HTTP (.to) → Code (.to) → Data Table (.to)
+Trigger (.add) → HTTP (.to) → HTTP (.to) → Code (.to) → HTTP (.to) → Gemini (.to) → Code (.to) → Data Table (.to)
 ```
 
-7 nodów w liniowym łańcuchu (usunięty Limit). Każdy node przesunięty w prawo o 240px na canvas.
+8 nodów w liniowym łańcuchu. Każdy node przesunięty w prawo o 240px na canvas.
 
 - `.add(node)` — START (tylko pierwszy node)
 - `.to(node)` — połączenie między nodami
@@ -182,7 +207,7 @@ Dla rozgałęzień: `.add()` wielokrotnie z tym samym triggerem.
 
 ---
 
-## 11. Kluczowe koncepcje n8n
+## 12. Kluczowe koncepcje n8n
 
 ### Item
 
@@ -197,6 +222,7 @@ Podstawowa jednostka danych. Struktura: `{ json: { ... }, binary?: { ... }, pair
 | HTTP (detale) | 500 | 500 (× 500 zapytań) |
 | Code (filtr) | 500 | 5 |
 | HTTP (tłumacz) | 5 | 5 (× 5 zapytań) |
+| Gemini (streszczenie) | 5 | 5 (× 5 zapytań API) |
 | Code (format) | 5 | 5 |
 | Data Table | 5 | 5 |
 
@@ -233,7 +259,7 @@ Gdy node zwróci 0 itemów, workflow zostaje przerwany. `alwaysOutputData: true`
 
 ---
 
-## 12. Lessons Learned
+## 13. Lessons Learned
 
 ### 1. "Cannot convert undefined or null to object"
 Brak `columns` w Data Table. **Rozwiązanie**: `columns: { mappingMode: 'autoMapInputData', value: null }`.
@@ -258,6 +284,12 @@ Brak `columns` w Data Table. **Rozwiązanie**: `columns: { mappingMode: 'autoMap
 
 ### 8. Limit przed filtrowaniem
 Limit 30 przed filtrowaniem oznaczał pracę tylko na pierwszych 30 ID. **Rozwiązanie**: usunięto Limit — filtrujemy wszystkie 500, wybieramy top 5 z pełnego zbioru.
+
+### 9. Format odpowiedzi Google Gemini
+Zakładałem, że Gemini z `simplify: true` zwróci `{ response: "tekst" }`. W rzeczywistości zwraca `{ content: { parts: [ { text: "tekst" } ] } }`. **Rozwiązanie**: sprawdź rzeczywisty output przed napisaniem kodu formatującego — użyj `get_execution` z `includeData: true`, aby podejrzeć strukturę odpowiedzi.
+
+### 10. urlContext vs własny fetch
+Planowałem osobny HTTP Request + Code do pobierania treści artykułów, ale Cloudflare blokował automatyczne zapytania. **Rozwiązanie**: użyj wbudowanego narzędzia `urlContext` w Gemini — model sam odczytuje URL-e z własnej infrastruktury, co eliminuje problemy z blokowaniem i upraszcza workflow.
 
 ---
 
