@@ -38,20 +38,6 @@ const fetchTopStories = node({
   output: [{ storyIds: [1, 2, 3] }]
 });
 
-const limitStories = node({
-  type: 'n8n-nodes-base.limit',
-  version: 1,
-  config: {
-    name: 'Pierwsze 30 ID',
-    parameters: {
-      maxItems: 30,
-      keep: 'firstItems'
-    },
-    position: [720, 300]
-  },
-  output: [{ storyId: 0 }]
-});
-
 const fetchStoryDetails = node({
   type: 'n8n-nodes-base.httpRequest',
   version: 4.4,
@@ -61,9 +47,17 @@ const fetchStoryDetails = node({
       method: 'GET',
       url: expr('https://hacker-news.firebaseio.com/v0/item/{{ $json }}.json'),
       authentication: 'none',
-      options: {}
+      options: {
+        timeout: 30000,
+        batching: {
+          batch: {
+            batchSize: 10,
+            batchInterval: 200
+          }
+        }
+      }
     },
-    position: [960, 300]
+    position: [720, 300]
   },
   output: [{ id: 1, title: '', by: '', score: 0, descendants: 0, url: '' }]
 });
@@ -77,7 +71,7 @@ const filterAndRank = node({
       mode: 'runOnceForAllItems',
       language: 'javaScript',
       jsCode: `
-var keywords = ['opencode', 'openrouter', 'openai', 'codex', 'gemini', 'stape_io', 'n8n', 'cursor', 'copilot', 'claude', 'llm', 'gpt', 'agent', 'mcp', 'aider', 'devin', 'langchain', 'llama', 'mistral', 'perplexity', 'vibe coding', 'windsurf', 'bolt.new', 'lovable'];
+var keywords = ['opencode', 'cloud code', 'openrouter', 'openai', 'codex', 'antigravity', 'warpdotdev', 'gemini', 'stape_io', 'n8n'];
 
 var stories = $input.all().map(function(item) { return item.json; });
 
@@ -110,7 +104,7 @@ for (var t = 0; t < top5.length; t++) {
 return result;
 `
     },
-    position: [1200, 300]
+    position: [960, 300]
   },
   output: [{ title: '', url: '', score: 0, author: '', comments: 0 }]
 });
@@ -126,7 +120,7 @@ const translateTitle = node({
       authentication: 'none',
       options: {}
     },
-    position: [1440, 300]
+    position: [1200, 300]
   },
   output: [{ responseData: { translatedText: '', match: 0 } }]
 });
@@ -164,7 +158,7 @@ for (var idx = 0; idx < originals.length; idx++) {
 return result;
 `
     },
-    position: [1680, 300]
+    position: [1440, 300]
   },
   output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '' }]
 });
@@ -184,7 +178,7 @@ const saveToTable = node({
       },
       options: {}
     },
-    position: [1920, 300]
+    position: [1680, 300]
   },
   output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '', id: 1, createdAt: '2026-05-10' }]
 });
@@ -192,7 +186,6 @@ const saveToTable = node({
 export default workflow('hn-top5-monday', 'HN Top 5 - poniedzialek 09:30')
   .add(scheduleTrigger)
   .to(fetchTopStories)
-  .to(limitStories)
   .to(fetchStoryDetails)
   .to(filterAndRank)
   .to(translateTitle)
