@@ -2,19 +2,21 @@
 
 ## Spis treści
 
-1. [Overview](#1-overview)
-2. [n8n Workflow SDK](#2-n8n-workflow-sdk)
-3. [Node 1: Schedule Trigger — harmonogram](#3-node-1-schedule-trigger)
-4. [Node 2: HTTP Request — lista ID z HN](#4-node-2-http-request)
-5. [Node 3: HTTP Request — szczegóły 500 artykułów](#5-node-3-http-request)
-6. [Node 4: Code — filtrowanie 500 i top 5](#6-node-4-code)
-7. [Node 5: HTTP Request — tłumaczenie](#7-node-5-http-request)
-8. [Node 6: Google Gemini — streszczenie](#8-node-6-google-gemini)
-9. [Node 7: Code — formatowanie danych](#9-node-7-code)
+ 1. [Overview](#1-overview)
+ 2. [n8n Workflow SDK](#2-n8n-workflow-sdk)
+ 3. [Node 1: Schedule Trigger — harmonogram](#3-node-1-schedule-trigger)
+ 4. [Node 2: HTTP Request — lista ID z HN](#4-node-2-http-request)
+ 5. [Node 3: HTTP Request — szczegóły 500 artykułów](#5-node-3-http-request)
+ 6. [Node 4: Code — filtrowanie 500 i top 5](#6-node-4-code)
+ 7. [Node 5: HTTP Request — tłumaczenie](#7-node-5-http-request)
+ 8. [Node 6: Google Gemini — streszczenie](#8-node-6-google-gemini)
+ 9. [Node 7: Code — formatowanie danych](#9-node-7-code)
 10. [Node 8: Data Table — zapis danych](#10-node-8-data-table)
-11. [Workflow composition — łączenie nodów](#11-workflow-composition)
-12. [Kluczowe koncepcje n8n](#12-kluczowe-koncepcje-n8n)
-13. [Lessons Learned](#13-lessons-learned)
+11. [Node 9: Code — HTML email](#11-node-9-code--html-email)
+12. [Node 10: Gmail — wysyłka](#12-node-10-gmail--wysyłka)
+13. [Workflow composition — łączenie nodów](#13-workflow-composition)
+14. [Kluczowe koncepcje n8n](#14-kluczowe-koncepcje-n8n)
+15. [Lessons Learned](#15-lessons-learned)
 
 ---
 
@@ -191,13 +193,44 @@ Tabela: `tytul_pl` (string), `tytul_en` (string), `url` (string), `punkty` (numb
 
 ---
 
-## 11. Workflow composition
+## 11. Node 9: Code — HTML email
+
+**Code node** — scala 5 artykułów w jeden sformatowany e-mail HTML. Wykonuje się **1 raz** (`runOnceForAllItems`).
+
+- Pobiera wszystkie 5 itemów przez `$input.all()`
+- Buduje kompletny dokument HTML z `<html><body>` i stylami inline
+- Dla każdego artykułu: link <a>, tytuł PL/EN, punkty, autor, komentarze, streszczenie
+- Funkcja `escapeHtml()` zabezpiecza przed XSS/injection w treści
+- Zwraca **1 item** z `{ htmlBody: "...", subject: "HN Top 5 — data" }`
+
+**Dlaczego osobny Code node?** Gmail działa na pojedynczym itemie — wysyła 1 e-mail na 1 item. Mając 5 itemów dostałbyś 5 osobnych maili. Code node scala wszystko w jeden item → 1 e-mail ze wszystkimi artykułami.
+
+---
+
+## 12. Node 10: Gmail — wysyłka
+
+**Gmail** — wysyła sformatowany e-mail na adres `pmackowka@gmail.com`.
+
+- `resource: 'message'`, `operation: 'send'` — wysyłanie wiadomości
+- `sendTo: 'pmackowka@gmail.com'` — adres docelowy
+- `subject` i `message` z poprzedniego Code node'a przez wyrażenia `{{ $json.subject }}` i `{{ $json.htmlBody }}`
+- `emailType: 'html'` — treść w formacie HTML (zamiast plain text)
+- `options.appendAttribution: false` — usuwa domyślną stopkę n8n
+- `credentials: { gmailOAuth2: newCredential('Gmail (GCP)') }` — kredencjał Gmail OAuth2
+
+Gmail zwraca `{ id, labelIds: ['SENT'], threadId }`. Workflow kończy się po wysłaniu maila.
+
+**Uwaga:** Node Gmail używa kredencjału `gmailOAuth2` (Gmail OAuth2), który musi być skonfigurowany na instancji n8n. Wymaga autoryzacji Google — po pierwszym uruchomieniu workflowu może być potrzebne ręczne potwierdzenie OAuth.
+
+---
+
+## 13. Workflow composition
 
 ```
-Trigger (.add) → HTTP (.to) → HTTP (.to) → Code (.to) → HTTP (.to) → Gemini (.to) → Code (.to) → Data Table (.to)
+Trigger (.add) → HTTP (.to) → HTTP (.to) → Code (.to) → HTTP (.to) → Gemini (.to) → Code (.to) → Data Table (.to) → Code (.to) → Gmail (.to)
 ```
 
-8 nodów w liniowym łańcuchu. Każdy node przesunięty w prawo o 240px na canvas.
+10 nodów w liniowym łańcuchu. Każdy node przesunięty w prawo o 240px na canvas.
 
 - `.add(node)` — START (tylko pierwszy node)
 - `.to(node)` — połączenie między nodami
@@ -207,7 +240,7 @@ Dla rozgałęzień: `.add()` wielokrotnie z tym samym triggerem.
 
 ---
 
-## 12. Kluczowe koncepcje n8n
+## 14. Kluczowe koncepcje n8n
 
 ### Item
 
@@ -225,6 +258,8 @@ Podstawowa jednostka danych. Struktura: `{ json: { ... }, binary?: { ... }, pair
 | Gemini (streszczenie) | 5 | 5 (× 5 zapytań API) |
 | Code (format) | 5 | 5 |
 | Data Table | 5 | 5 |
+| Code (HTML) | 5 | 1 (scala 5 → 1) |
+| Gmail (wysyłka) | 1 | 1 |
 
 ### $json, $input, $('NodeName')
 
@@ -259,7 +294,7 @@ Gdy node zwróci 0 itemów, workflow zostaje przerwany. `alwaysOutputData: true`
 
 ---
 
-## 13. Lessons Learned
+## 15. Lessons Learned
 
 ### 1. "Cannot convert undefined or null to object"
 Brak `columns` w Data Table. **Rozwiązanie**: `columns: { mappingMode: 'autoMapInputData', value: null }`.

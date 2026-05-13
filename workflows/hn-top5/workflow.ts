@@ -223,6 +223,75 @@ const saveToTable = node({
   output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '', streszczenie_pl: '', id: 1, createdAt: '2026-05-12' }]
 });
 
+const buildHtmlEmail = node({
+  type: 'n8n-nodes-base.code',
+  version: 2,
+  config: {
+    name: 'Buduj HTML email',
+    parameters: {
+      mode: 'runOnceForAllItems',
+      language: 'javaScript',
+      jsCode: `
+var items = $input.all();
+var date = new Date().toISOString().split('T')[0];
+
+var html = '<html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">';
+html += '<h1 style="color:#ff6600;">HN Top 5 \\u2014 ' + date + '</h1>';
+html += '<p style="color:#666;">Najciekawsze artykuly z Hacker News wybrane z top 500.</p>';
+html += '<hr style="border:1px solid #eee;">';
+
+for (var i = 0; i < items.length; i++) {
+  var item = items[i].json;
+  html += '<h2><a href="' + item.url + '" style="color:#1a73e8;text-decoration:none;">' + escapeHtml(item.tytul_pl) + '</a></h2>';
+  html += '<p><strong>Oryginal:</strong> ' + escapeHtml(item.tytul_en) + '<br>';
+  html += '<strong>Punkty:</strong> ' + item.punkty + ' | <strong>Autor:</strong> ' + escapeHtml(item.autor) + ' | <strong>Komentarze:</strong> ' + item.komentarze + '</p>';
+  html += '<p><strong>Streszczenie:</strong><br>' + escapeHtml(item.streszczenie_pl) + '</p>';
+  if (i < items.length - 1) {
+    html += '<hr style="border:1px solid #eee;">';
+  }
+}
+
+html += '<hr style="border:1px solid #eee;">';
+html += '<p style="color:#999;font-size:12px;">Wygenerowano automatycznie przez n8n workflow.</p>';
+html += '</body></html>';
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+return [{ json: { htmlBody: html, subject: 'HN Top 5 \\u2014 ' + date } }];
+`
+    },
+    position: [2160, 300]
+  },
+  output: [{ htmlBody: '', subject: '' }]
+});
+
+const sendEmail = node({
+  type: 'n8n-nodes-base.gmail',
+  version: 2.2,
+  config: {
+    name: 'Wyslij email',
+    parameters: {
+      resource: 'message',
+      operation: 'send',
+      sendTo: 'pmackowka@gmail.com',
+      subject: expr('{{ $json.subject }}'),
+      emailType: 'html',
+      message: expr('{{ $json.htmlBody }}'),
+      options: {
+        appendAttribution: false
+      }
+    },
+    credentials: {
+      gmailOAuth2: newCredential('Gmail (GCP)')
+    },
+    position: [2400, 300]
+  },
+  output: [{ id: 'msg123', labelIds: ['SENT'], threadId: 'thread123' }]
+});
+
 export default workflow('hn-top5-monday', 'HN Top 5 - poniedzialek 09:30')
   .add(scheduleTrigger)
   .to(fetchTopStories)
@@ -231,4 +300,6 @@ export default workflow('hn-top5-monday', 'HN Top 5 - poniedzialek 09:30')
   .to(translateTitle)
   .to(summarizeWithGemini)
   .to(formatResults)
-  .to(saveToTable);
+  .to(saveToTable)
+  .to(buildHtmlEmail)
+  .to(sendEmail);
