@@ -14,7 +14,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 | 4 | **My workflow** (pusty) | `gpvpszunXxwjHvwl` | brak | 0 | brak | 2026-05-08 |
 | 5 | **HN Top 5 — poniedziałek 09:30** | `KmPY4nLRoV6JwYmz` | Schedule Trigger | 10 | Google Gemini (AI Studio), Gmail (GCP) | 2026-05-10 (przebud. 2026-05-13) |
 | 6 | **HN Top 10 — poniedziałek 09:30** | — | Schedule Trigger | 10 | Google Gemini (AI Studio), Gmail account (GCP) | 2026-05-13 |
-| 7 | **Dev.to + HN Top 10 — codziennie 08:00** | `T7qjoY4DqCvRY4oF` | Schedule Trigger (daily) | 11 | Google Gemini (AI Studio), Gmail account (GCP) | 2026-05-13 |
+| 7 | **Lobste.rs + HN Top 10 — codziennie 08:00** | `T7qjoY4DqCvRY4oF` | Schedule Trigger (daily) | 11 | Google Gemini (AI Studio), Gmail account (GCP) | 2026-05-13 |
 
 ---
 
@@ -76,18 +76,19 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 - **Kod źródłowy:** `workflows/hn-top10/workflow.ts`
 - **Data dodania:** 2026-05-13
 
-### 7. Dev.to + HN Top 10 — codziennie 08:00
-- **Źródło:** Zbudowany od podstaw przez MCP
-- **Struktura:** Schedule (daily) → HTTP (HN topstories) → HTTP (HN detale ×500, batch 10) → HTTP (Dev.to top 100) → Code (filtruj+scalaj: 5 HN + 5 Dev.to = 10) → HTTP (tłumaczenie ×10) → Google Gemini (streszczenie ×10) → Code (formatowanie) → Data Table (zapis) → Code (HTML email) → Gmail (wysyłka)
+### 7. Lobste.rs + HN Top 10 — codziennie 08:00
+- **Źródło:** Zbudowany od podstaw przez MCP, zastąpił wersję z Dev.to (API timeout)
+- **Struktura:** Schedule (daily) → HTTP (HN topstories) → HTTP (HN detale ×500, batch 10) → HTTP (Lobste.rs stories) → Code (filtruj+scalaj: 5 HN + 5 Lobste.rs = 10) → HTTP (tłumaczenie ×10) → Google Gemini (streszczenie ×10) → Code (formatowanie) → Data Table (zapis) → Code (HTML email) → Gmail (wysyłka)
 - **Trigger:** Codziennie o 08:00
 - **Filtrowane frazy:** opencode, cloud code, openrouter, openai, codex, antigravity, warpdotdev, gemini, stape_io, n8n
-- **Wyszukiwanie:** HN top 500 + Dev.to top 100 → filtr po tytułach → HN sort po score (top 5) + Dev.to sort po comments (top 5)
+- **Wyszukiwanie:** HN top 500 + Lobste.rs top 200 → filtr po tytułach → HN sort po score (top 5) + Lobste.rs sort po comment_count (top 5)
+- **Kolejność:** Najpierw 5 z HN, potem 5 z Lobste.rs
 - **Tłumaczenie:** MyMemory API (EN→PL), z fallbackiem do oryginalnego tytułu
 - **Streszczenie:** Google Gemini (`text:message`, model domyślny, `urlContext: true`) generuje 2-3 zdaniowe polskie podsumowanie każdego artykułu
-- **E-mail:** Gmail wysyła HTML z podziałem na źródła (badge HN/Dev.to), bezpośrednie linki do artykułów, punkty/reakcje, streszczenia
-- **Output:** Data Table z kolumnami `zrodlo`, `tytul_pl`, `tytul_en`, `url`, `punkty`, `reakcje`, `komentarze`, `autor`, `streszczenie_pl`
+- **E-mail:** Gmail wysyła HTML z podziałem na źródła (badge pomarańczowy HN / granatowy Lobste.rs), bezpośrednie linki, punkty, komentarze, streszczenia
+- **Output:** Data Table z kolumnami `zrodlo`, `tytul_pl`, `tytul_en`, `url`, `punkty`, `komentarze`, `autor`, `streszczenie_pl`
 - **Kredencjały:** Google Gemini (AI Studio) przez `@n8n/n8n-nodes-langchain.googleGemini`, Gmail account (GCP) przez `gmailOAuth2`
-- **Kod źródłowy:** `workflows/devto-hn-top10/workflow.ts`
+- **Kod źródłowy:** `workflows/lobsters-hn-top10/workflow.ts`
 - **Data dodania:** 2026-05-13
 
 ---
@@ -96,7 +97,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 
 | Data | Opis |
 |---|---|---|
-| 2026-05-13 | Dodano #7: Dev.to + HN Top 10 — codziennie 08:00, dwa źródła (5+5), sortowanie po komentarzach. |
+| 2026-05-13 | Przebudowano #7: Dev.to → Lobste.rs (API timeout), zmiana katalogu, walidacja MCP. |
 | 2026-05-13 | Dodano #6: HN Top 10 — fork z #5, top 5→10, nowa Data Table. |
 | 2026-05-13 | Przebudowano #5: dodano wysyłkę e-mail przez Gmail. 8→10 nodów. Code node buduje HTML z 5 artykułów, Gmail wysyła na pmackowka@gmail.com. |
 | 2026-05-12 | Przebudowano #5: dodano Google Gemini do generowania polskich streszczeń artykułów (`urlContext`). 7→8 nodów. Dodano kolumnę `streszczenie_pl` do Data Table. |

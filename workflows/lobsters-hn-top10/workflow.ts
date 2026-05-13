@@ -61,21 +61,21 @@ const fetchStoryDetails = node({
   output: [{ id: 1, title: '', by: '', score: 0, descendants: 0, url: '' }]
 });
 
-const fetchDevTo = node({
+const fetchLobsteRs = node({
   type: 'n8n-nodes-base.httpRequest',
   version: 4.4,
   config: {
-    name: 'Pobierz Dev.to',
+    name: 'Pobierz Lobste.rs',
     parameters: {
       method: 'GET',
-      url: 'https://dev.to/api/articles?top=1&per_page=100',
+      url: 'https://lobste.rs/stories.json',
       authentication: 'none',
       options: {}
     },
     alwaysOutputData: true,
     position: [960, 300]
   },
-  output: [{ title: '', url: '', comments_count: 0, positive_reactions_count: 0, user: { name: '' }, tags: '' }]
+  output: [{ title: '', url: '', score: 0, comment_count: 0, submitter_user: { username: '' }, tags: [''] }]
 });
 
 const filterAndMerge = node({
@@ -105,13 +105,13 @@ for (var i = 0; i < hnItems.length; i++) {
 hnFiltered.sort(function(a, b) { return (b.score || 0) - (a.score || 0); });
 var hnTop5 = hnFiltered.slice(0, 5);
 
-var devtoItems = $input.all().map(function(i) { return i.json; });
-var devtoFiltered = [];
-for (var i = 0; i < devtoItems.length; i++) {
-  if (matchesKeywords(devtoItems[i])) devtoFiltered.push(devtoItems[i]);
+var lobstersItems = $input.all().map(function(i) { return i.json; });
+var lobstersFiltered = [];
+for (var i = 0; i < lobstersItems.length; i++) {
+  if (matchesKeywords(lobstersItems[i])) lobstersFiltered.push(lobstersItems[i]);
 }
-devtoFiltered.sort(function(a, b) { return (b.comments_count || 0) - (a.comments_count || 0); });
-var devtoTop5 = devtoFiltered.slice(0, 5);
+lobstersFiltered.sort(function(a, b) { return (b.comment_count || 0) - (a.comment_count || 0); });
+var lobstersTop5 = lobstersFiltered.slice(0, 5);
 
 var result = [];
 for (var i = 0; i < hnTop5.length; i++) {
@@ -122,23 +122,21 @@ for (var i = 0; i < hnTop5.length; i++) {
       url: h.url || 'https://news.ycombinator.com/item?id=' + h.id,
       comments: h.descendants || 0,
       score: h.score || 0,
-      reactions: 0,
       author: h.by || 'unknown',
       source: 'HN'
     }
   });
 }
-for (var i = 0; i < devtoTop5.length; i++) {
-  var d = devtoTop5[i];
+for (var i = 0; i < lobstersTop5.length; i++) {
+  var l = lobstersTop5[i];
   result.push({
     json: {
-      title: d.title,
-      url: d.url,
-      comments: d.comments_count || 0,
-      score: 0,
-      reactions: d.positive_reactions_count || 0,
-      author: d.user ? (d.user.name || 'unknown') : 'unknown',
-      source: 'Dev.to'
+      title: l.title,
+      url: l.url,
+      comments: l.comment_count || 0,
+      score: l.score || 0,
+      author: l.submitter_user ? (l.submitter_user.username || 'unknown') : 'unknown',
+      source: 'Lobste.rs'
     }
   });
 }
@@ -147,7 +145,7 @@ return result;
     },
     position: [1200, 300]
   },
-  output: [{ title: '', url: '', comments: 0, score: 0, reactions: 0, author: '', source: '' }]
+  output: [{ title: '', url: '', comments: 0, score: 0, author: '', source: '' }]
 });
 
 const translateTitle = node({
@@ -229,7 +227,6 @@ for (var idx = 0; idx < originals.length; idx++) {
       tytul_en: orig.title,
       url: orig.url,
       punkty: orig.score || 0,
-      reakcje: orig.reactions || 0,
       komentarze: orig.comments || 0,
       autor: orig.author || 'unknown',
       zrodlo: orig.source || '',
@@ -243,7 +240,7 @@ return result;
     },
     position: [1920, 300]
   },
-  output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, reakcje: 0, komentarze: 0, autor: '', zrodlo: '', data: '', streszczenie_pl: '' }]
+  output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, komentarze: 0, autor: '', zrodlo: '', data: '', streszczenie_pl: '' }]
 });
 
 const saveToTable = node({
@@ -263,7 +260,7 @@ const saveToTable = node({
     },
     position: [2160, 300]
   },
-  output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, reakcje: 0, komentarze: 0, autor: '', zrodlo: '', data: '', streszczenie_pl: '', id: 1, createdAt: '' }]
+  output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, komentarze: 0, autor: '', zrodlo: '', data: '', streszczenie_pl: '', id: 1, createdAt: '' }]
 });
 
 const buildHtmlEmail = node({
@@ -285,24 +282,24 @@ function escapeHtml(str) {
 
 function sourceBadge(source) {
   if (source === 'HN') return '<span style="background:#ff6600;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:bold;">HN</span>';
-  if (source === 'Dev.to') return '<span style="background:#0a0a23;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:bold;">Dev.to</span>';
+  if (source === 'Lobste.rs') return '<span style="background:#1a5276;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:bold;">Lobste.rs</span>';
   return '<span style="background:#666;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px;">' + escapeHtml(source) + '</span>';
 }
 
 var html = '<html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">';
-html += '<h1 style="color:#ff6600;">Dev.to + HN Top 10 \\u2014 ' + date + '</h1>';
-html += '<p style="color:#666;">Najciekawsze artykuly z Hacker News i Dev.to wybrane z top 500 / top 100.</p>';
+html += '<h1 style="color:#ff6600;">HN + Lobste.rs Top 10 \\u2014 ' + date + '</h1>';
+html += '<p style="color:#666;">Najciekawsze artykuly z Hacker News i Lobste.rs wybrane z top 500 / top 200.</p>';
 html += '<hr style="border:1px solid #eee;">';
 
 var hnCount = 0;
-var devtoCount = 0;
+var lobstersCount = 0;
 for (var i = 0; i < items.length; i++) {
   var item = items[i].json;
   if (item.zrodlo === 'HN') hnCount++;
-  if (item.zrodlo === 'Dev.to') devtoCount++;
+  if (item.zrodlo === 'Lobste.rs') lobstersCount++;
 }
 
-html += '<p><strong>Podsumowanie:</strong> ' + hnCount + ' z HN, ' + devtoCount + ' z Dev.to</p>';
+html += '<p><strong>Podsumowanie:</strong> ' + hnCount + ' z HN, ' + lobstersCount + ' z Lobste.rs</p>';
 html += '<hr style="border:1px solid #eee;">';
 
 for (var i = 0; i < items.length; i++) {
@@ -312,9 +309,6 @@ for (var i = 0; i < items.length; i++) {
   html += '<strong>Komentarze:</strong> ' + item.komentarze;
   if (item.zrodlo === 'HN') {
     html += ' | <strong>Punkty:</strong> ' + item.punkty;
-  }
-  if (item.zrodlo === 'Dev.to' && item.reakcje > 0) {
-    html += ' | <strong>Reakcje:</strong> ' + item.reakcje;
   }
   html += ' | <strong>Autor:</strong> ' + escapeHtml(item.autor) + '</p>';
   html += '<p><strong>Link:</strong> <a href="' + item.url + '" style="color:#1a73e8;">' + escapeHtml(item.url) + '</a></p>';
@@ -328,7 +322,7 @@ html += '<hr style="border:1px solid #eee;">';
 html += '<p style="color:#999;font-size:12px;">Wygenerowano automatycznie przez n8n workflow codziennie o 08:00.</p>';
 html += '</body></html>';
 
-return [{ json: { htmlBody: html, subject: 'Dev.to + HN Top 10 \\u2014 ' + date } }];
+return [{ json: { htmlBody: html, subject: 'HN + Lobste.rs Top 10 \\u2014 ' + date } }];
 `
     },
     position: [2400, 300]
@@ -360,11 +354,11 @@ const sendEmail = node({
   output: [{ id: 'msg123', labelIds: ['SENT'], threadId: 'thread123' }]
 });
 
-export default workflow('devto-hn-top10-daily', 'Dev.to + HN Top 10 - codziennie 08:00')
+export default workflow('lobsters-hn-top10-daily', 'Lobste.rs + HN Top 10 - codziennie 08:00')
   .add(scheduleTrigger)
   .to(fetchTopStories)
   .to(fetchStoryDetails)
-  .to(fetchDevTo)
+  .to(fetchLobsteRs)
   .to(filterAndMerge)
   .to(translateTitle)
   .to(summarizeWithGemini)
