@@ -14,7 +14,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 | 4 | **My workflow** (pusty) | `gpvpszunXxwjHvwl` | brak | 0 | brak | 2026-05-08 |
 | 5 | **HN Top 5 — poniedziałek 09:30** | `KmPY4nLRoV6JwYmz` | Schedule Trigger | 10 | Google Gemini (AI Studio), Gmail (GCP) | 2026-05-10 (przebud. 2026-05-13) |
 | 6 | **HN Top 10 — poniedziałek 09:30** | — | Schedule Trigger | 10 | Google Gemini (AI Studio), Gmail account (GCP) | 2026-05-13 |
-| 7 | **Dev.to + HN Top 10 — codziennie 08:00** | — | Schedule Trigger (daily) | 11 | Google Gemini (AI Studio), Gmail account (GCP) | 2026-05-13 |
+| 7 | **Dev.to + HN Top 10 — codziennie 08:00** | `T7qjoY4DqCvRY4oF` | Schedule Trigger (daily) | 11 | Google Gemini (AI Studio), Gmail account (GCP) | 2026-05-13 |
 
 ---
 
