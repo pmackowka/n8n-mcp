@@ -12,7 +12,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 | 2 | **Sieć Agentów AI (Deepseek)** | `Sus7cpF3VSkhwbgl` | Chat Trigger | 11 | DeepSeek, Gmail (GCP), Google Calendar (GCP), Tavily | 2026-05-06 |
 | 3 | **Query GA4 data with Google Gemini AI in a Slack channel** | `b6dM5vmG0oZ0z8sh` | Slack Trigger | 8 | Slack, Google Analytics OAuth2, Google Gemini (AI Studio) | 2026-05-07 |
 | 4 | **My workflow** (pusty) | `gpvpszunXxwjHvwl` | brak | 0 | brak | 2026-05-08 |
-| 5 | **HN Top 5 — poniedziałek 09:30** | `KmPY4nLRoV6JwYmz` | Schedule Trigger | 10 | Google Gemini (AI Studio), Gmail (GCP) | 2026-05-10 (przebud. 2026-05-13) |
+| 5 | **HN Top 10 — codziennie 08:00** | `KmPY4nLRoV6JwYmz` | Schedule Trigger (daily) | 10 | Google Gemini (AI Studio), Gmail (GCP) | 2026-05-10 (przebud. 2026-05-13) |
 | 6 | **HN Top 10 — poniedziałek 09:30** | — | Schedule Trigger | 10 | Google Gemini (AI Studio), Gmail account (GCP) | 2026-05-13 |
 | 7 | **Lobste.rs + HN Top 10 — codziennie 08:00** | `T7qjoY4DqCvRY4oF` | Schedule Trigger (daily) | 11 | Google Gemini (AI Studio), Gmail account (GCP) | 2026-05-13 |
 
@@ -48,19 +48,19 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 ### 4. My workflow (pusty)
 - Pusty workflow gotowy do wypełnienia
 
-### 5. HN Top 5 — poniedziałek 09:30
-- **Źródło:** Zbudowany od podstaw przez MCP
-- **Struktura:** Schedule → HTTP (topstories) → HTTP (detale HN ×500, batch 10) → Code (filtr+ranking) → HTTP (tłumaczenie ×5) → Google Gemini (streszczenie ×5) → Code (formatowanie) → Data Table (zapis) → Code (HTML email) → Gmail (wysyłka)
-- **Trigger:** Co poniedziałek o 09:30
+### 5. HN Top 10 — codziennie 08:00
+- **Źródło:** Zbudowany od podstaw przez MCP, rozbudowany o email i top 10
+- **Struktura:** Schedule (daily) → HTTP (topstories) → HTTP (detale HN ×500, batch 10) → Code (filtr+ranking) → HTTP (tłumaczenie ×10) → Google Gemini (streszczenie ×10) → Code (formatowanie) → Data Table (zapis) → Code (HTML email) → Gmail (wysyłka)
+- **Trigger:** Codziennie o 08:00
 - **Filtrowane frazy:** opencode, cloud code, openrouter, openai, codex, antigravity, warpdotdev, gemini, stape_io, n8n
-- **Wyszukiwanie:** Top 500 HN → fetch szczegółów wszystkich 500 (batch 10) → filtr po tytułach → sort po score → top 5
+- **Wyszukiwanie:** Top 500 HN → fetch szczegółów wszystkich 500 (batch 10) → filtr po tytułach → sort po score → top **10**
 - **Tłumaczenie:** MyMemory API (EN→PL), z fallbackiem do oryginalnego tytułu
 - **Streszczenie:** Google Gemini (`text:message`, model domyślny, `urlContext: true`) generuje 2-3 zdaniowe polskie podsumowanie każdego artykułu
 - **E-mail:** Gmail (`n8n-nodes-base.gmail`) wysyła sformatowany HTML na `pmackowka@gmail.com` z linkami, tytułami PL/EN, punktami i streszczeniami
 - **Output:** Data Table "HN Top 5 - Artykuly" (ID: `Iy9nbjya69dnFGOf`), 8 kolumn: `tytul_pl`, `tytul_en`, `url`, `punkty`, `autor`, `komentarze`, `data`, `streszczenie_pl`
 - **Kredencjały:** Google Gemini (AI Studio) przez `@n8n/n8n-nodes-langchain.googleGemini`, Gmail account (GCP) przez `gmailOAuth2`
 - **Kod źródłowy:** `workflows/hn-top5/workflow.ts`
-- **Data dodania:** 2026-05-10 (przebudowany 2026-05-12)
+- **Data dodania:** 2026-05-10 (przebudowany 2026-05-13)
 
 ### 6. HN Top 10 — poniedziałek 09:30
 - **Źródło:** Fork z #5 (HN Top 5)
@@ -97,6 +97,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 
 | Data | Opis |
 |---|---|---|
+| 2026-05-13 | Przebudowano #5: top 5→10, trigger z poniedziałku na codziennie 08:00. |
 | 2026-05-13 | Przebudowano #7: Dev.to → Lobste.rs (API timeout), zmiana katalogu, walidacja MCP. |
 | 2026-05-13 | Dodano #6: HN Top 10 — fork z #5, top 5→10, nowa Data Table. |
 | 2026-05-13 | Przebudowano #5: dodano wysyłkę e-mail przez Gmail. 8→10 nodów. Code node buduje HTML z 5 artykułów, Gmail wysyła na pmackowka@gmail.com. |

@@ -4,15 +4,14 @@ const scheduleTrigger = trigger({
   type: 'n8n-nodes-base.scheduleTrigger',
   version: 1.3,
   config: {
-    name: 'Co poniedzialek 09:30',
+    name: 'Codziennie 08:00',
     parameters: {
       rule: {
         interval: [{
-          field: 'weeks',
-          weeksInterval: 1,
-          triggerAtDay: [1],
-          triggerAtHour: 9,
-          triggerAtMinute: 30
+          field: 'days',
+          daysInterval: 1,
+          triggerAtHour: 8,
+          triggerAtMinute: 0
         }]
       }
     },
@@ -87,17 +86,17 @@ for (var s = 0; s < stories.length; s++) {
 }
 
 filtered.sort(function(a, b) { return (b.score || 0) - (a.score || 0); });
-var top5 = filtered.slice(0, 5);
+var top10 = filtered.slice(0, 10);
 
 var result = [];
-for (var t = 0; t < top5.length; t++) {
+for (var t = 0; t < top10.length; t++) {
   result.push({
     json: {
-      title: top5[t].title,
-      url: top5[t].url || 'https://news.ycombinator.com/item?id=' + top5[t].id,
-      score: top5[t].score || 0,
-      author: top5[t].by || 'unknown',
-      comments: top5[t].descendants || 0
+      title: top10[t].title,
+      url: top10[t].url || 'https://news.ycombinator.com/item?id=' + top10[t].id,
+      score: top10[t].score || 0,
+      author: top10[t].by || 'unknown',
+      comments: top10[t].descendants || 0
     }
   });
 }
@@ -236,7 +235,7 @@ var items = $input.all();
 var date = new Date().toISOString().split('T')[0];
 
 var html = '<html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">';
-html += '<h1 style="color:#ff6600;">HN Top 5 \\u2014 ' + date + '</h1>';
+html += '<h1 style="color:#ff6600;">HN Top 10 \\u2014 ' + date + '</h1>';
 html += '<p style="color:#666;">Najciekawsze artykuly z Hacker News wybrane z top 500.</p>';
 html += '<hr style="border:1px solid #eee;">';
 
@@ -260,7 +259,7 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-return [{ json: { htmlBody: html, subject: 'HN Top 5 \\u2014 ' + date } }];
+return [{ json: { htmlBody: html, subject: 'HN Top 10 \\u2014 ' + date } }];
 `
     },
     position: [2160, 300]
@@ -292,7 +291,7 @@ const sendEmail = node({
   output: [{ id: 'msg123', labelIds: ['SENT'], threadId: 'thread123' }]
 });
 
-export default workflow('hn-top5-monday', 'HN Top 5 - poniedzialek 09:30')
+export default workflow('hn-top10-daily', 'HN Top 10 - codziennie 08:00')
   .add(scheduleTrigger)
   .to(fetchTopStories)
   .to(fetchStoryDetails)
