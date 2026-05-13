@@ -124,14 +124,14 @@ const translateTitle = node({
   output: [{ responseData: { translatedText: '', match: 0 } }]
 });
 
-const wait15s = node({
+const wait20s = node({
   type: 'n8n-nodes-base.wait',
   version: 1.1,
   config: {
-    name: 'Odczekaj 15s',
+    name: 'Odczekaj 20s',
     parameters: {
       resume: 'timeInterval',
-      amount: 15,
+      amount: 20,
       unit: 'seconds'
     },
     position: [1680, 300]
@@ -324,5 +324,5 @@ export default workflow('hn-top10-daily', 'HN Top 10 - codziennie 08:00')
   .to(filterAndRank)
   .to(batchNode
     .onDone(formatResults.to(saveToTable).to(buildHtmlEmail).to(sendEmail))
-    .onEachBatch(translateTitle.to(wait15s).to(summarizeWithGemini).to(nextBatch(batchNode)))
+    .onEachBatch(translateTitle.to(wait20s).to(summarizeWithGemini).to(nextBatch(batchNode)))
   );
