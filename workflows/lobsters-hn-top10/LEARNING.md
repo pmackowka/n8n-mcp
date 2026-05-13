@@ -1,20 +1,20 @@
-# Understanding the HN Top 5 Workflow
+# Understanding the Lobste.rs + HN Top 10 Workflow
 
 ## Spis treści
 
  1. [Overview](#1-overview)
  2. [n8n Workflow SDK](#2-n8n-workflow-sdk)
- 3. [Node 1: Schedule Trigger — harmonogram](#3-node-1-schedule-trigger)
+ 3. [Node 1: Schedule Trigger — codziennie 08:00](#3-node-1-schedule-trigger)
  4. [Node 2: HTTP Request — lista ID z HN](#4-node-2-http-request)
  5. [Node 3: HTTP Request — szczegóły 500 artykułów](#5-node-3-http-request)
- 6. [Node 4: Code — filtrowanie 500 i top 5](#6-node-4-code)
- 7. [Node 5: HTTP Request — tłumaczenie](#7-node-5-http-request)
- 8. [Node 6: Google Gemini — streszczenie](#8-node-6-google-gemini)
- 9. [Node 7: Code — formatowanie danych](#9-node-7-code)
-10. [Node 8: Data Table — zapis danych](#10-node-8-data-table)
-11. [Node 9: Code — HTML email](#11-node-9-code--html-email)
-12. [Node 10: Gmail — wysyłka](#12-node-10-gmail--wysyłka)
-13. [Workflow composition — łączenie nodów](#13-workflow-composition)
+ 6. [Node 4: HTTP Request — lista z Lobste.rs](#6-node-4-http-request--lobsters)
+ 7. [Node 5: Code — filtrowanie i scalanie 5+5](#7-node-5-code--filtrowanie-i-scalanie)
+ 8. [Node 6: HTTP Request — tłumaczenie](#8-node-6-http-request)
+ 9. [Node 7: Google Gemini — streszczenie](#9-node-7-google-gemini)
+10. [Node 8: Code — formatowanie danych](#10-node-8-code)
+11. [Node 9: Data Table — zapis danych](#11-node-9-data-table)
+12. [Node 10: Code — HTML email](#12-node-10-code--html-email)
+13. [Node 11: Gmail — wysyłka](#13-node-11-gmail)
 14. [Kluczowe koncepcje n8n](#14-kluczowe-koncepcje-n8n)
 15. [Lessons Learned](#15-lessons-learned)
 
@@ -22,18 +22,21 @@
 
 ## 1. Overview
 
-Workflow uruchamia się w każdy poniedziałek o 09:30. Łączy się z Hacker News, pobiera **wszystkie 500** najgorętszych artykułów, dla każdego pobiera szczegóły, filtruje po słowach kluczowych AI/devtools, wybiera **top 5 spośród wszystkich 500**, tłumaczy tytuły na polski, generuje polskie streszczenia przez Google Gemini i zapisuje do tabeli.
+Workflow uruchamia się codziennie o 08:00. Łączy się z **Hacker News** (500 ID) i **Lobste.rs** (200 stories), filtruje po słowach kluczowych AI/devtools, wybiera **top 5 z każdego źródła** (łącznie 10), tłumaczy tytuły na polski, generuje polskie streszczenia przez Google Gemini i wysyła sformatowany HTML e-mail.
 
 Przepływ danych:
 
 ```
-Trigger (pn 09:30) → HTTP (pobierz 500 ID) → HTTP (szczegóły × 500)
-→ Code (filtruj 500 po słowach kluczowych → top 5 po score)
-→ HTTP (tłumacz tytuły × 5) → Gemini (streszczenie × 5)
+Trigger (daily 08:00)
+→ HTTP (HN 500 ID) → HTTP (szczegóły × 500)
+→ HTTP (Lobste.rs stories)
+→ Code (filtruj oba źródła → top 5 HN + top 5 Lobste.rs = 10)
+→ HTTP (tłumacz tytuły × 10) → Gemini (streszczenie × 10)
 → Code (formatuj) → Data Table (zapisz)
+→ Code (HTML email) → Gmail (wyślij)
 ```
 
-Kluczowe zmiany: workflow **nie ogranicza do 30** przed filtrowaniem — przetwarza wszystkie 500 ID, co daje lepsze wyniki (top 5 spośród pełnego zbioru). Oraz **Google Gemini** z `urlContext` generuje polskie streszczenia na podstawie rzeczywistej treści artykułów.
+Kluczowe różnice vs HN-only: **dwa źródła** (HN + Lobste.rs), **5+5=10 artykułów**, HN sortowane po score, Lobste.rs po comment_count, **kolejność HN first**, codzienny trigger.
 
 ---
 
