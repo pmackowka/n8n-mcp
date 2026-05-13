@@ -1,4 +1,4 @@
-import { workflow, node, trigger, expr, newCredential } from '@n8n/workflow-sdk';
+import { workflow, node, trigger, expr, newCredential, splitInBatches, nextBatch } from '@n8n/workflow-sdk';
 
 const scheduleTrigger = trigger({
   type: 'n8n-nodes-base.scheduleTrigger',
@@ -119,9 +119,24 @@ const translateTitle = node({
       authentication: 'none',
       options: {}
     },
-    position: [1200, 300]
+    position: [1440, 300]
   },
   output: [{ responseData: { translatedText: '', match: 0 } }]
+});
+
+const wait15s = node({
+  type: 'n8n-nodes-base.wait',
+  version: 1.1,
+  config: {
+    name: 'Odczekaj 15s',
+    parameters: {
+      resume: 'timeInterval',
+      amount: 15,
+      unit: 'seconds'
+    },
+    position: [1680, 300]
+  },
+  output: [{}]
 });
 
 const summarizeWithGemini = node({
@@ -151,7 +166,7 @@ const summarizeWithGemini = node({
     credentials: {
       googlePalmApi: newCredential('Google Gemini (AI Studio)')
     },
-    position: [1440, 300]
+    position: [1920, 300]
   },
   output: [{ response: '' }]
 });
@@ -197,7 +212,7 @@ for (var idx = 0; idx < originals.length; idx++) {
 return result;
 `
     },
-    position: [1680, 300]
+    position: [1680, 200]
   },
   output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '', streszczenie_pl: '' }]
 });
@@ -217,7 +232,7 @@ const saveToTable = node({
       },
       options: {}
     },
-    position: [1920, 300]
+    position: [1920, 200]
   },
   output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '', streszczenie_pl: '', id: 1, createdAt: '2026-05-12' }]
 });
@@ -251,7 +266,7 @@ for (var i = 0; i < items.length; i++) {
 }
 
 html += '<hr style="border:1px solid #eee;">';
-html += '<p style="color:#999;font-size:12px;">Wygenerowano automatycznie przez n8n workflow.</p>';
+html += '<p style="color:#999;font-size:12px;">Wygenerowano automatycznie przez n8n workflow codziennie o 08:00.</p>';
 html += '</body></html>';
 
 function escapeHtml(str) {
@@ -262,7 +277,7 @@ function escapeHtml(str) {
 return [{ json: { htmlBody: html, subject: 'HN Top 10 \\u2014 ' + date } }];
 `
     },
-    position: [2160, 300]
+    position: [2160, 200]
   },
   output: [{ htmlBody: '', subject: '' }]
 });
@@ -286,9 +301,20 @@ const sendEmail = node({
     credentials: {
       gmailOAuth2: newCredential('Gmail account (GCP)')
     },
-    position: [2400, 300]
+    position: [2400, 200]
   },
   output: [{ id: 'msg123', labelIds: ['SENT'], threadId: 'thread123' }]
+});
+
+const batchNode = splitInBatches({
+  version: 3,
+  config: {
+    name: 'Przetwarzaj po 1',
+    parameters: {
+      batchSize: 1
+    },
+    position: [1200, 300]
+  }
 });
 
 export default workflow('hn-top10-daily', 'HN Top 10 - codziennie 08:00')
@@ -296,9 +322,7 @@ export default workflow('hn-top10-daily', 'HN Top 10 - codziennie 08:00')
   .to(fetchTopStories)
   .to(fetchStoryDetails)
   .to(filterAndRank)
-  .to(translateTitle)
-  .to(summarizeWithGemini)
-  .to(formatResults)
-  .to(saveToTable)
-  .to(buildHtmlEmail)
-  .to(sendEmail);
+  .to(batchNode
+    .onDone(formatResults.to(saveToTable).to(buildHtmlEmail).to(sendEmail))
+    .onEachBatch(translateTitle.to(wait15s).to(summarizeWithGemini).to(nextBatch(batchNode)))
+  );
