@@ -13,6 +13,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 | 3 | **Query GA4 data with Google Gemini AI in a Slack channel** | `b6dM5vmG0oZ0z8sh` | Slack Trigger | 8 | Slack, Google Analytics OAuth2, Google Gemini (AI Studio) | 2026-05-07 |
 | 4 | **My workflow** (pusty) | `gpvpszunXxwjHvwl` | brak | 0 | brak | 2026-05-08 |
 | 5 | **HN Top 5 — poniedziałek 09:30** | `KmPY4nLRoV6JwYmz` | Schedule Trigger | 10 | Google Gemini (AI Studio), Gmail (GCP) | 2026-05-10 (przebud. 2026-05-13) |
+| 6 | **HN Top 10 — poniedziałek 09:30** | — | Schedule Trigger | 10 | Google Gemini (AI Studio), Gmail account (GCP) | 2026-05-13 |
 
 ---
 
@@ -56,9 +57,23 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 - **Streszczenie:** Google Gemini (`text:message`, model domyślny, `urlContext: true`) generuje 2-3 zdaniowe polskie podsumowanie każdego artykułu
 - **E-mail:** Gmail (`n8n-nodes-base.gmail`) wysyła sformatowany HTML na `pmackowka@gmail.com` z linkami, tytułami PL/EN, punktami i streszczeniami
 - **Output:** Data Table "HN Top 5 - Artykuly" (ID: `Iy9nbjya69dnFGOf`), 8 kolumn: `tytul_pl`, `tytul_en`, `url`, `punkty`, `autor`, `komentarze`, `data`, `streszczenie_pl`
-- **Kredencjały:** Google Gemini (AI Studio) przez `@n8n/n8n-nodes-langchain.googleGemini`, Gmail (GCP) przez `gmailOAuth2`
+- **Kredencjały:** Google Gemini (AI Studio) przez `@n8n/n8n-nodes-langchain.googleGemini`, Gmail account (GCP) przez `gmailOAuth2`
 - **Kod źródłowy:** `workflows/hn-top5/workflow.ts`
 - **Data dodania:** 2026-05-10 (przebudowany 2026-05-12)
+
+### 6. HN Top 10 — poniedziałek 09:30
+- **Źródło:** Fork z #5 (HN Top 5)
+- **Struktura:** Schedule → HTTP (topstories) → HTTP (detale HN ×500, batch 10) → Code (filtr+ranking) → HTTP (tłumaczenie ×10) → Google Gemini (streszczenie ×10) → Code (formatowanie) → Data Table (zapis) → Code (HTML email) → Gmail (wysyłka)
+- **Trigger:** Co poniedziałek o 09:30
+- **Filtrowane frazy:** opencode, cloud code, openrouter, openai, codex, antigravity, warpdotdev, gemini, stape_io, n8n
+- **Wyszukiwanie:** Top 500 HN → fetch szczegółów wszystkich 500 (batch 10) → filtr po tytułach → sort po score → top **10**
+- **Tłumaczenie:** MyMemory API (EN→PL), z fallbackiem do oryginalnego tytułu
+- **Streszczenie:** Google Gemini (`text:message`, model domyślny, `urlContext: true`) generuje 2-3 zdaniowe polskie podsumowanie każdego artykułu
+- **E-mail:** Gmail (`n8n-nodes-base.gmail`) wysyła sformatowany HTML na `pmackowka@gmail.com` z linkami, tytułami PL/EN, punktami i streszczeniami
+- **Output:** Data Table (nowa tabela dla top 10)
+- **Kredencjały:** Google Gemini (AI Studio) przez `@n8n/n8n-nodes-langchain.googleGemini`, Gmail account (GCP) przez `gmailOAuth2`
+- **Kod źródłowy:** `workflows/hn-top10/workflow.ts`
+- **Data dodania:** 2026-05-13
 
 ---
 
@@ -66,6 +81,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 
 | Data | Opis |
 |---|---|---|
+| 2026-05-13 | Dodano #6: HN Top 10 — fork z #5, top 5→10, nowa Data Table. |
 | 2026-05-13 | Przebudowano #5: dodano wysyłkę e-mail przez Gmail. 8→10 nodów. Code node buduje HTML z 5 artykułów, Gmail wysyła na pmackowka@gmail.com. |
 | 2026-05-12 | Przebudowano #5: dodano Google Gemini do generowania polskich streszczeń artykułów (`urlContext`). 7→8 nodów. Dodano kolumnę `streszczenie_pl` do Data Table. |
 | 2026-05-10 | Dodano #5: HN Top 5 — poniedziałek 09:30. Stworzony przez MCP. |
