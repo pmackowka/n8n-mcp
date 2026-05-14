@@ -124,30 +124,29 @@ const translateTitle = node({
   output: [{ responseData: { translatedText: '', match: 0 } }]
 });
 
-const deepSeekModel = languageModel({
-  type: '@n8n/n8n-nodes-langchain.lmChatDeepSeek',
-  version: 1,
+const groqModel = languageModel({
+  type: '@n8n/n8n-nodes-langchain.lmChatGroq',
+  version: 1.1,
   config: {
-    name: 'DeepSeek Model',
+    name: 'Groq Chat Model',
     parameters: {
-      model: 'deepseek-chat',
+      model: 'llama-3.3-70b-versatile',
       options: {
-        temperature: 0.4,
-        maxTokens: 1024
+        temperature: 0.4
       }
     },
     credentials: {
-      deepSeekApi: newCredential('DeepSeek')
+      groqApi: newCredential('Groq account')
     },
-    position: [1920, 500]
+    position: [1800, 500]
   }
 });
 
-const summarizeDeepSeek = node({
+const summarizeWithGroq = node({
   type: '@n8n/n8n-nodes-langchain.agent',
   version: 3.1,
   config: {
-    name: 'Generuj streszczenie (DS)',
+    name: 'Generuj streszczenie (Groq)',
     parameters: {
       promptType: 'define',
       text: expr('Podsumuj ponizszy artykul w jezyku polskim w 5-6 zdaniach. Skup sie na kluczowych wnioskach.\n\nTytul: {{ $("Filtruj i ranking").item.json.title }}\n\nURL: {{ $("Filtruj i ranking").item.json.url }}'),
@@ -156,9 +155,9 @@ const summarizeDeepSeek = node({
       }
     },
     subnodes: {
-      model: deepSeekModel
+      model: groqModel
     },
-    position: [1920, 300]
+    position: [1800, 300]
   },
   output: [{ output: '' }]
 });
@@ -174,7 +173,7 @@ const formatResults = node({
       jsCode: `
 var translations = $('Tlumacz tytul').all().map(function(i) { return i.json; });
 var originals = $('Filtruj i ranking').all().map(function(i) { return i.json; });
-var summaries = $('Generuj streszczenie (DS)').all().map(function(i) { return i.json; });
+var summaries = $('Generuj streszczenie (Groq)').all().map(function(i) { return i.json; });
 
 var result = [];
 for (var idx = 0; idx < originals.length; idx++) {
@@ -192,7 +191,7 @@ for (var idx = 0; idx < originals.length; idx++) {
     streszczenie = summary.text;
   }
   if (!streszczenie) {
-    console.log('Brak streszczenia dla idx ' + idx + ' | tytul: ' + orig.title + ' | DS response:', JSON.stringify(summary));
+    console.log('Brak streszczenia dla idx ' + idx + ' | tytul: ' + orig.title + ' | groq response:', JSON.stringify(summary));
   }
 
   result.push({
@@ -231,7 +230,7 @@ const saveToTable = node({
       },
       options: {}
     },
-    position: [1920, 200]
+    position: [2040, 200]
   },
   output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '', streszczenie_pl: '', id: 1, createdAt: '2026-05-12' }]
 });
@@ -249,7 +248,7 @@ var items = $input.all();
 var date = new Date().toISOString().split('T')[0];
 
 var html = '<html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">';
-html += '<h1 style="color:#ff6600;">HN Top 10 \\u2014 ' + date + ' (DeepSeek)</h1>';
+html += '<h1 style="color:#ff6600;">HN Top 10 \\u2014 ' + date + ' (Groq)</h1>';
 html += '<p style="color:#666;">Najciekawsze artykuly z Hacker News wybrane z top 500.</p>';
 html += '<hr style="border:1px solid #eee;">';
 
@@ -266,7 +265,7 @@ for (var i = 0; i < items.length; i++) {
 }
 
 html += '<hr style="border:1px solid #eee;">';
-html += '<p style="color:#999;font-size:12px;">Wygenerowano automatycznie przez n8n workflow codziennie o 08:00 (DeepSeek).</p>';
+html += '<p style="color:#999;font-size:12px;">Wygenerowano automatycznie przez n8n workflow codziennie o 08:00 (Groq).</p>';
 html += '</body></html>';
 
 function escapeHtml(str) {
@@ -274,10 +273,10 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-return [{ json: { htmlBody: html, subject: 'HN Top 10 \\u2014 ' + date + ' (DeepSeek)' } }];
+return [{ json: { htmlBody: html, subject: 'HN Top 10 \\u2014 ' + date + ' (Groq)' } }];
 `
     },
-    position: [2160, 200]
+    position: [2320, 200]
   },
   output: [{ htmlBody: '', subject: '' }]
 });
@@ -301,7 +300,7 @@ const sendEmail = node({
     credentials: {
       gmailOAuth2: newCredential('Gmail account (GCP)')
     },
-    position: [2400, 200]
+    position: [2560, 200]
   },
   output: [{ id: 'msg123', labelIds: ['SENT'], threadId: 'thread123' }]
 });
@@ -317,12 +316,12 @@ const batchNode = splitInBatches({
   }
 });
 
-export default workflow('hn-top10-deepseek-daily', 'HN Top 10 — codziennie 08:00 (DeepSeek)')
+export default workflow('hn-top10-groq', 'HN Top 10 - codziennie 08:00 (Groq)')
   .add(scheduleTrigger)
   .to(fetchTopStories)
   .to(fetchStoryDetails)
   .to(filterAndRank)
   .to(batchNode
     .onDone(formatResults.to(saveToTable).to(buildHtmlEmail).to(sendEmail))
-    .onEachBatch(translateTitle.to(summarizeDeepSeek).to(nextBatch(batchNode)))
+    .onEachBatch(translateTitle.to(summarizeWithGroq).to(nextBatch(batchNode)))
   );
