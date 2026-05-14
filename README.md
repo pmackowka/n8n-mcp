@@ -40,6 +40,28 @@ Połączenie MCP jest zdefiniowane w `opencode.json`. OpenCode wczytuje go autom
 
 OpenCode używa składni `{file:ścieżka}` do odczytu wrażliwych danych bezpośrednio z plików — nie wymaga to ustawiania zmiennych środowiskowych. Wystarczy utworzyć pliki `.n8n/url` i `.n8n/token` z odpowiednimi wartościami.
 
+## Subagent dokumentacji `@dok`
+
+Po utworzeniu lub modyfikacji workflowa, zaktualizuj dokumentację za pomocą dedykowanego subagenta:
+
+```
+@dok zaktualizuj dokumentację po zmianach w workflowie <nazwa>
+```
+
+Subagent `@dok` (czyt. *dok*) automatycznie:
+1. Czyta kod źródłowy workflowa (`workflows/<nazwa>/workflow.ts`)
+2. Aktualizuje rejestr w `TEMPLATES.md`
+3. Tworzy/aktualizuje `workflows/<nazwa>/LEARNING.md` (architektura, węzły, parametry)
+4. Dodaje wpisy do `AGENTS.md` (jeśli napotkano problemy i znaleziono rozwiązania)
+
+**Przykładowy przepływ pracy:**
+```
+Ty: "Stwórz workflow X, który robi Y"
+→ Build (domyślny agent) tworzy, waliduje i deployuje workflow
+
+Ty: "@dok zaktualizuj dokumentację"
+→ Dok subagent aktualizuje TEMPLATES.md, LEARNING.md, AGENTS.md
+```
 
 ## Narzędzia MCP (25 tooli)
 
