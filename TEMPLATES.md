@@ -12,7 +12,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 | 2 | **Sieć Agentów AI (Deepseek)** | `Sus7cpF3VSkhwbgl` | Chat Trigger | 11 | DeepSeek, Gmail (GCP), Google Calendar (GCP), Tavily | 2026-05-06 |
 | 3 | **Query GA4 data with Google Gemini AI in a Slack channel** | `b6dM5vmG0oZ0z8sh` | Slack Trigger | 8 | Slack, Google Analytics OAuth2, Google Gemini (AI Studio) | 2026-05-07 |
 | 4 | **HN Top 10 — codziennie 08:00 (Gemini)** | `KmPY4nLRoV6JwYmz` | Schedule Trigger (daily) | 12 | Google Gemini (AI Studio), Gmail account (GCP) | 2026-05-10 (przebud. 2026-05-14) |
-| 5 | **HN Top 10 — codziennie 08:00 (Groq)** | — | Schedule Trigger (daily) | 11 | Groq account, Gmail account (GCP) | 2026-05-14 |
+| 5 | **HN Top 10 — codziennie 08:00 (Groq)** | `eOP2wbOfoS5H1qR2` | Schedule Trigger (daily) | 12 | Groq account, Gmail account (GCP) | 2026-05-14 |
 
 ---
 
