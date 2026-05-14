@@ -206,6 +206,41 @@ const summarizeWithGroq = node({
   output: [{ output: '' }]
 });
 
+const prepareBatchResult = node({
+  type: 'n8n-nodes-base.code',
+  version: 2,
+  config: {
+    name: 'Przygotuj wynik batcha',
+    parameters: {
+      mode: 'runOnceForAllItems',
+      language: 'javaScript',
+      jsCode: `
+var orig = $("Zapisz oryginalne").item.json;
+var trans = $("Tlumacz tytul").item.json;
+var summary = $json;
+
+var translatedText = (trans.responseData && trans.responseData.translatedText) || orig.title;
+var streszczenie = summary.output || summary.response || summary.text || '';
+
+return [{
+  json: {
+    tytul_pl: translatedText,
+    tytul_en: orig.title,
+    url: orig.url,
+    punkty: orig.score || 0,
+    autor: orig.author || 'unknown',
+    komentarze: orig.comments || 0,
+    data: new Date().toISOString().split('T')[0],
+    streszczenie_pl: streszczenie
+  }
+}];
+`
+    },
+    position: [2080, 300]
+  },
+  output: [{ tytul_pl: '', tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0, data: '', streszczenie_pl: '' }]
+});
+
 const formatResults = node({
   type: 'n8n-nodes-base.code',
   version: 2,
@@ -215,43 +250,9 @@ const formatResults = node({
       mode: 'runOnceForAllItems',
       language: 'javaScript',
       jsCode: `
-var translations = $('Tlumacz tytul').all().map(function(i) { return i.json; });
-var originals = $('Zapisz oryginalne').all().map(function(i) { return i.json; });
-var summaries = $('Generuj streszczenie (Groq)').all().map(function(i) { return i.json; });
-
-var result = [];
-for (var idx = 0; idx < originals.length; idx++) {
-  var orig = originals[idx];
-  var trans = translations[idx] || {};
-  var translatedText = (trans.responseData && trans.responseData.translatedText) || orig.title;
-
-  var summary = summaries[idx] || {};
-  var streszczenie = '';
-  if (summary.output && typeof summary.output === 'string') {
-    streszczenie = summary.output;
-  } else if (summary.response && typeof summary.response === 'string') {
-    streszczenie = summary.response;
-  } else if (summary.text && typeof summary.text === 'string') {
-    streszczenie = summary.text;
-  }
-  if (!streszczenie) {
-    console.log('Brak streszczenia dla idx ' + idx + ' | tytul: ' + orig.title + ' | groq response:', JSON.stringify(summary));
-  }
-
-  result.push({
-    json: {
-      tytul_pl: translatedText,
-      tytul_en: orig.title,
-      url: orig.url,
-      punkty: orig.score || 0,
-      autor: orig.author || 'unknown',
-      komentarze: orig.comments || 0,
-      data: new Date().toISOString().split('T')[0],
-      streszczenie_pl: streszczenie
-    }
-  });
-}
-return result;
+return $input.all().map(function(item) {
+  return { json: item.json };
+});
 `
     },
     position: [1680, 200]
@@ -367,5 +368,5 @@ export default workflow('hn-top10-groq', 'HN Top 10 - codziennie 08:00 (Groq)')
   .to(filterAndRank)
   .to(batchNode
     .onDone(formatResults.to(saveToTable).to(buildHtmlEmail).to(sendEmail))
-    .onEachBatch(saveOriginal.to(translateTitle).to(mergeData).to(summarizeWithGroq).to(nextBatch(batchNode)))
+    .onEachBatch(saveOriginal.to(translateTitle).to(mergeData).to(summarizeWithGroq).to(prepareBatchResult).to(nextBatch(batchNode)))
   );
