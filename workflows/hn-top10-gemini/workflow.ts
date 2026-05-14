@@ -150,17 +150,14 @@ const summarizeWithGemini = node({
 
       messages: {
         values: [{
-          content: expr('Podsumuj ponizszy artykul w jezyku polskim w 2-3 zdaniach. Skup sie na kluczowych wnioskach.\n\nTytul: {{ $("Filtruj i ranking").item.json.title }}\n\nURL: {{ $("Filtruj i ranking").item.json.url }}'),
+          content: expr('Podsumuj ponizszy artykul w jezyku polskim w 5-6 zdaniach. Skup sie na kluczowych wnioskach.\n\nTytul: {{ $("Filtruj i ranking").item.json.title }}\n\nURL: {{ $("Filtruj i ranking").item.json.url }}'),
           role: 'user'
         }]
       },
       simplify: true,
-      builtInTools: {
-        urlContext: true
-      },
       options: {
         temperature: 0.4,
-        maxOutputTokens: 1024
+        maxOutputTokens: 4096
       }
     },
     credentials: {

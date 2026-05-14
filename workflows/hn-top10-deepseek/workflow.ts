@@ -150,7 +150,7 @@ const summarizeDeepSeek = node({
     name: 'Generuj streszczenie (DS)',
     parameters: {
       promptType: 'define',
-      text: expr('Podsumuj ponizszy artykul w jezyku polskim w 2-3 zdaniach. Skup sie na kluczowych wnioskach.\n\nTytul: {{ $("Filtruj i ranking").item.json.title }}\n\nURL: {{ $("Filtruj i ranking").item.json.url }}'),
+      text: expr('Podsumuj ponizszy artykul w jezyku polskim w 5-6 zdaniach. Skup sie na kluczowych wnioskach.\n\nTytul: {{ $("Filtruj i ranking").item.json.title }}\n\nURL: {{ $("Filtruj i ranking").item.json.url }}'),
       options: {
         systemMessage: 'Jestes asystentem ktory streszcza artykuly technologiczne w jezyku polskim.'
       }
