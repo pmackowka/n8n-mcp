@@ -24,7 +24,7 @@ Ten projekt łączy model językowy z instancją n8n przez protokół MCP.
 | Workflow | ID w n8n | Status | Opis |
 |---|---|---|---|
 | HN Top 10 — Groq | `nicN5lZNI0LSb7Jz` | ✅ Aktywny | Główny workflow, codziennie o 08:00. Groq/Llama 3.3 70B. |
-| HN Top 10 — Gemini | `KmPY4nLRoV6JwYmz` | ❌ Uśpiony | Alternatywa Gemini. Zachowany jako kod źródłowy (`workflows/hn-top10-gemini/workflow.ts`). |
+| HN Top 10 — Gemini | `KmPY4nLRoV6JwYmz` | 🗑️ Usunięty z serwera | Alternatywa Gemini. Kod źródłowy zachowany lokalnie (`workflows/hn-top10-gemini/workflow.ts`). |
 
 ## Dokumentacja
 
@@ -88,7 +88,7 @@ Wpłynęło na: `workflows/hn-top10-gemini/workflow.ts` i `workflows/hn-top10-gr
 - **maxOutputTokens:** Zwiększono z 1024 do 4096 (dłuższe streszczenia).
 - **Prompt:** Zmieniono z "2-3 zdania" na "5-6 zdań".
 - **DeepSeek:** Usunięto `workflows/hn-top10-deepseek/` i zarchiwizowano na serwerze (płatny model, niepotrzebny).
-- **Gemini workflow:** Uśpiony (unpublish) na serwerze. Kod źródłowy zachowany lokalnie.
+- **Gemini workflow:** Usunięty z serwera. Kod źródłowy zachowany lokalnie (`workflows/hn-top10-gemini/workflow.ts`).
 
 #### Ważne dla przyszłych sesji
 
