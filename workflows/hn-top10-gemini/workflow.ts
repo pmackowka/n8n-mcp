@@ -108,6 +108,23 @@ return result;
   output: [{ title: '', url: '', score: 0, author: '', comments: 0 }]
 });
 
+const saveOriginal = node({
+  type: 'n8n-nodes-base.code',
+  version: 2,
+  config: {
+    name: 'Zapisz oryginalne',
+    parameters: {
+      mode: 'runOnceForAllItems',
+      language: 'javaScript',
+      jsCode: `
+return [{ json: $input.first().json }];
+`
+    },
+    position: [1320, 300]
+  },
+  output: [{ title: '', url: '', score: 0, author: '', comments: 0 }]
+});
+
 const translateTitle = node({
   type: 'n8n-nodes-base.httpRequest',
   version: 4.4,
@@ -119,7 +136,7 @@ const translateTitle = node({
       authentication: 'none',
       options: {}
     },
-    position: [1440, 300]
+    position: [1560, 300]
   },
   output: [{ responseData: { translatedText: '', match: 0 } }]
 });
@@ -148,7 +165,7 @@ const mergeData = node({
       mode: 'runOnceForAllItems',
       language: 'javaScript',
       jsCode: `
-var original = $("Filtruj i ranking").item.json;
+var original = $("Zapisz oryginalne").item.json;
 return [{
   json: {
     tytul_en: original.title,
@@ -160,7 +177,7 @@ return [{
 }];
 `
     },
-    position: [1800, 300]
+    position: [1920, 300]
   },
   output: [{ tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0 }]
 });
@@ -204,14 +221,14 @@ const formatResults = node({
       language: 'javaScript',
       jsCode: `
 var translations = $('Tlumacz tytul').all().map(function(i) { return i.json; });
-var articleData = $('Dolacz dane artykulu').all().map(function(i) { return i.json; });
+var originals = $('Zapisz oryginalne').all().map(function(i) { return i.json; });
 var summaries = $('Generuj streszczenie').all().map(function(i) { return i.json; });
 
 var result = [];
-for (var idx = 0; idx < articleData.length; idx++) {
-  var orig = articleData[idx];
+for (var idx = 0; idx < originals.length; idx++) {
+  var orig = originals[idx];
   var trans = translations[idx] || {};
-  var translatedText = (trans.responseData && trans.responseData.translatedText) || orig.tytul_en;
+  var translatedText = (trans.responseData && trans.responseData.translatedText) || orig.title;
 
   var summary = summaries[idx] || {};
   var streszczenie = '';
@@ -221,17 +238,17 @@ for (var idx = 0; idx < articleData.length; idx++) {
     streszczenie = summary.content.parts[0].text || '';
   }
   if (!streszczenie) {
-    console.log('Brak streszczenia dla idx ' + idx + ' | tytul: ' + orig.tytul_en + ' | gemini response:', JSON.stringify(summary));
+    console.log('Brak streszczenia dla idx ' + idx + ' | tytul: ' + orig.title + ' | gemini response:', JSON.stringify(summary));
   }
 
   result.push({
     json: {
       tytul_pl: translatedText,
-      tytul_en: orig.tytul_en,
+      tytul_en: orig.title,
       url: orig.url,
-      punkty: orig.punkty,
-      autor: orig.autor,
-      komentarze: orig.komentarze,
+      punkty: orig.score || 0,
+      autor: orig.author || 'unknown',
+      komentarze: orig.comments || 0,
       data: new Date().toISOString().split('T')[0],
       streszczenie_pl: streszczenie
     }
@@ -353,5 +370,5 @@ export default workflow('hn-top10-daily', 'HN Top 10 - codziennie 08:00')
   .to(filterAndRank)
   .to(batchNode
     .onDone(formatResults.to(saveToTable).to(buildHtmlEmail).to(sendEmail))
-    .onEachBatch(translateTitle.to(wait20s).to(mergeData).to(summarizeWithGemini).to(nextBatch(batchNode)))
+    .onEachBatch(saveOriginal.to(translateTitle).to(wait20s).to(mergeData).to(summarizeWithGemini).to(nextBatch(batchNode)))
   );
