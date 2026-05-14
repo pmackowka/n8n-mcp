@@ -183,7 +183,17 @@ for (var idx = 0; idx < originals.length; idx++) {
   var translatedText = (trans.responseData && trans.responseData.translatedText) || orig.title;
 
   var summary = summaries[idx] || {};
-  var streszczenie = summary.output || '';
+  var streszczenie = '';
+  if (summary.output && typeof summary.output === 'string') {
+    streszczenie = summary.output;
+  } else if (summary.response && typeof summary.response === 'string') {
+    streszczenie = summary.response;
+  } else if (summary.text && typeof summary.text === 'string') {
+    streszczenie = summary.text;
+  }
+  if (!streszczenie) {
+    console.log('Brak streszczenia dla idx ' + idx + ' | tytul: ' + orig.title + ' | DS response:', JSON.stringify(summary));
+  }
 
   result.push({
     json: {
@@ -246,8 +256,9 @@ html += '<hr style="border:1px solid #eee;">';
 for (var i = 0; i < items.length; i++) {
   var item = items[i].json;
   html += '<h2><a href="' + item.url + '" style="color:#1a73e8;text-decoration:none;">' + escapeHtml(item.tytul_pl) + '</a></h2>';
-  html += '<p><strong>Oryginal:</strong> ' + escapeHtml(item.tytul_en) + '<br>';
-  html += '<strong>Punkty:</strong> ' + item.punkty + ' | <strong>Autor:</strong> ' + escapeHtml(item.autor) + ' | <strong>Komentarze:</strong> ' + item.komentarze + '</p>';
+  html += '<p><strong>Oryginal:</strong> <a href="' + item.url + '" style="color:#1a73e8;">' + escapeHtml(item.tytul_en) + '</a><br>';
+  html += '<strong>Punkty:</strong> ' + item.punkty + ' | <strong>Autor:</strong> ' + escapeHtml(item.autor) + ' | <strong>Komentarze:</strong> ' + item.komentarze + '<br>';
+  html += '<a href="' + item.url + '" style="font-size:13px;color:#1a73e8;">Otwórz oryginalny artykuł →</a></p>';
   html += '<p><strong>Streszczenie:</strong><br>' + escapeHtml(item.streszczenie_pl) + '</p>';
   if (i < items.length - 1) {
     html += '<hr style="border:1px solid #eee;">';
