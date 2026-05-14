@@ -292,26 +292,44 @@ const buildHtmlEmail = node({
 var items = $input.all();
 var date = new Date().toISOString().split('T')[0];
 
-var html = '<html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">';
-html += '<h1 style="color:#ff6600;">HN Top 10 \\u2014 ' + date + ' (Groq)</h1>';
-html += '<p style="color:#666;">Najciekawsze artykuly z Hacker News wybrane z top 500.</p>';
-html += '<hr style="border:1px solid #eee;">';
+var html = '<html><head><style>'
++ 'body{font-family:Arial,sans-serif;font-size:18px;line-height:1.6;max-width:640px;margin:0 auto;padding:20px;background-color:#ffffff;color:#24292f;}'
++ 'h1{font-size:26px;color:#ff6600;margin-bottom:4px;}'
++ 'h2{font-size:22px;margin:16px 0 8px;}'
++ 'a{color:#1a73e8;text-decoration:none;}'
++ 'a:hover{text-decoration:underline;}'
++ '.meta{color:#656d76;font-size:15px;}'
++ '.footer{color:#656d76;font-size:14px;}'
++ '.link{font-size:15px;}'
++ 'hr{border:none;border-top:1px solid #d0d7de;margin:20px 0;}'
++ '@media(prefers-color-scheme:dark){'
++ 'body{background-color:#0d1117!important;color:#e6edf3!important;}'
++ 'a{color:#58a6ff!important;}'
++ '.meta{color:#8b949e!important;}'
++ '.footer{color:#8b949e!important;}'
++ 'hr{border-top-color:#21262d!important;}'
++ '}'
++ '</style></head>'
++ '<body bgcolor="#ffffff" text="#24292f">'
++ '<h1>HN Top 10 \\u2014 ' + date + ' (Groq)</h1>'
++ '<p class="meta">Najciekawsze artykuly z Hacker News wybrane z top 500.</p>'
++ '<hr>';
 
 for (var i = 0; i < items.length; i++) {
   var item = items[i].json;
-  html += '<h2><a href="' + item.url + '" style="color:#1a73e8;text-decoration:none;">' + escapeHtml(item.tytul_pl) + '</a></h2>';
-  html += '<p><strong>Oryginal:</strong> <a href="' + item.url + '" style="color:#1a73e8;">' + escapeHtml(item.tytul_en) + '</a><br>';
-  html += '<strong>Punkty:</strong> ' + item.punkty + ' | <strong>Autor:</strong> ' + escapeHtml(item.autor) + ' | <strong>Komentarze:</strong> ' + item.komentarze + '<br>';
-  html += '<a href="' + item.url + '" style="font-size:13px;color:#1a73e8;">Otwórz oryginalny artykuł →</a></p>';
-  html += '<p><strong>Streszczenie:</strong><br>' + escapeHtml(item.streszczenie_pl) + '</p>';
+  html += '<h2><a href="' + item.url + '">' + escapeHtml(item.tytul_pl) + '</a></h2>';
+  html += '<p style="margin:4px 0;"><strong>Oryginal:</strong> <a href="' + item.url + '">' + escapeHtml(item.tytul_en) + '</a><br>'
+  + '<span class="meta"><strong>Punkty:</strong> ' + item.punkty + ' | <strong>Autor:</strong> ' + escapeHtml(item.autor) + ' | <strong>Komentarze:</strong> ' + item.komentarze + '</span><br>'
+  + '<a href="' + item.url + '" class="link" style="font-size:15px;">Otwórz oryginalny artykuł →</a></p>';
+  html += '<p style="margin:8px 0 4px;"><strong>Streszczenie:</strong><br>' + escapeHtml(item.streszczenie_pl) + '</p>';
   if (i < items.length - 1) {
-    html += '<hr style="border:1px solid #eee;">';
+    html += '<hr>';
   }
 }
 
-html += '<hr style="border:1px solid #eee;">';
-html += '<p style="color:#999;font-size:12px;">Wygenerowano automatycznie przez n8n workflow codziennie o 08:00 (Groq).</p>';
-html += '</body></html>';
+html += '<hr>'
++ '<p class="footer">Wygenerowano automatycznie przez n8n workflow codziennie o 08:00 (Groq).</p>'
++ '</body></html>';
 
 function escapeHtml(str) {
   if (!str) return '';
