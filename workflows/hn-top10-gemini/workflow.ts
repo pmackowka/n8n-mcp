@@ -139,6 +139,32 @@ const wait20s = node({
   output: [{}]
 });
 
+const mergeData = node({
+  type: 'n8n-nodes-base.code',
+  version: 2,
+  config: {
+    name: 'Dolacz dane artykulu',
+    parameters: {
+      mode: 'runOnceForAllItems',
+      language: 'javaScript',
+      jsCode: `
+var original = $("Filtruj i ranking").item.json;
+return [{
+  json: {
+    tytul_en: original.title,
+    url: original.url,
+    punkty: original.score || 0,
+    autor: original.author || 'unknown',
+    komentarze: original.comments || 0
+  }
+}];
+`
+    },
+    position: [1800, 300]
+  },
+  output: [{ tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0 }]
+});
+
 const summarizeWithGemini = node({
   type: '@n8n/n8n-nodes-langchain.googleGemini',
   version: 1.2,
@@ -150,7 +176,7 @@ const summarizeWithGemini = node({
 
       messages: {
         values: [{
-          content: expr('Podsumuj ponizszy artykul w jezyku polskim w 5-6 zdaniach. Skup sie na kluczowych wnioskach.\n\nTytul: {{ $("Filtruj i ranking").item.json.title }}\n\nURL: {{ $("Filtruj i ranking").item.json.url }}'),
+          content: expr('Podsumuj ponizszy artykul w jezyku polskim w 5-6 zdaniach. Skup sie na kluczowych wnioskach.\n\nTytul: {{ $json.tytul_en }}\n\nURL: {{ $json.url }}'),
           role: 'user'
         }]
       },
@@ -163,7 +189,7 @@ const summarizeWithGemini = node({
     credentials: {
       googlePalmApi: newCredential('Google Gemini (AI Studio)')
     },
-    position: [1920, 300]
+    position: [2040, 300]
   },
   output: [{ response: '' }]
 });
@@ -178,14 +204,14 @@ const formatResults = node({
       language: 'javaScript',
       jsCode: `
 var translations = $('Tlumacz tytul').all().map(function(i) { return i.json; });
-var originals = $('Filtruj i ranking').all().map(function(i) { return i.json; });
+var articleData = $('Dolacz dane artykulu').all().map(function(i) { return i.json; });
 var summaries = $('Generuj streszczenie').all().map(function(i) { return i.json; });
 
 var result = [];
-for (var idx = 0; idx < originals.length; idx++) {
-  var orig = originals[idx];
+for (var idx = 0; idx < articleData.length; idx++) {
+  var orig = articleData[idx];
   var trans = translations[idx] || {};
-  var translatedText = (trans.responseData && trans.responseData.translatedText) || orig.title;
+  var translatedText = (trans.responseData && trans.responseData.translatedText) || orig.tytul_en;
 
   var summary = summaries[idx] || {};
   var streszczenie = '';
@@ -195,17 +221,17 @@ for (var idx = 0; idx < originals.length; idx++) {
     streszczenie = summary.content.parts[0].text || '';
   }
   if (!streszczenie) {
-    console.log('Brak streszczenia dla idx ' + idx + ' | tytul: ' + orig.title + ' | gemini response:', JSON.stringify(summary));
+    console.log('Brak streszczenia dla idx ' + idx + ' | tytul: ' + orig.tytul_en + ' | gemini response:', JSON.stringify(summary));
   }
 
   result.push({
     json: {
       tytul_pl: translatedText,
-      tytul_en: orig.title,
-      url: orig.url || 'https://news.ycombinator.com/item?id=' + orig.id,
-      punkty: orig.score || 0,
-      autor: orig.author || 'unknown',
-      komentarze: orig.comments || 0,
+      tytul_en: orig.tytul_en,
+      url: orig.url,
+      punkty: orig.punkty,
+      autor: orig.autor,
+      komentarze: orig.komentarze,
       data: new Date().toISOString().split('T')[0],
       streszczenie_pl: streszczenie
     }
@@ -327,5 +353,5 @@ export default workflow('hn-top10-daily', 'HN Top 10 - codziennie 08:00')
   .to(filterAndRank)
   .to(batchNode
     .onDone(formatResults.to(saveToTable).to(buildHtmlEmail).to(sendEmail))
-    .onEachBatch(translateTitle.to(wait20s).to(summarizeWithGemini).to(nextBatch(batchNode)))
+    .onEachBatch(translateTitle.to(wait20s).to(mergeData).to(summarizeWithGemini).to(nextBatch(batchNode)))
   );

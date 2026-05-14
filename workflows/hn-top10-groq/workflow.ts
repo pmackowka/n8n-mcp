@@ -124,21 +124,48 @@ const translateTitle = node({
   output: [{ responseData: { translatedText: '', match: 0 } }]
 });
 
-const groqModel = languageModel({
-  type: '@n8n/n8n-nodes-langchain.lmChatGroq',
-  version: 1.1,
+const mergeData = node({
+  type: 'n8n-nodes-base.code',
+  version: 2,
   config: {
-    name: 'Groq Chat Model',
+    name: 'Dolacz dane artykulu',
     parameters: {
-      model: 'llama-3.3-70b-versatile',
+      mode: 'runOnceForAllItems',
+      language: 'javaScript',
+      jsCode: `
+var original = $("Filtruj i ranking").item.json;
+return [{
+  json: {
+    tytul_en: original.title,
+    url: original.url,
+    punkty: original.score || 0,
+    autor: original.author || 'unknown',
+    komentarze: original.comments || 0
+  }
+}];
+`
+    },
+    position: [1680, 300]
+  },
+  output: [{ tytul_en: '', url: '', punkty: 0, autor: '', komentarze: 0 }]
+});
+
+const groqModel = languageModel({
+  type: '@n8n/n8n-nodes-langchain.lmChatOpenAi',
+  version: 1.3,
+  config: {
+    name: 'Groq via OpenAI',
+    parameters: {
+      model: { mode: 'id', value: 'llama-3.3-70b-versatile' },
       options: {
-        temperature: 0.4
+        temperature: 0.4,
+        baseURL: 'https://api.groq.com/openai/v1'
       }
     },
     credentials: {
-      groqApi: newCredential('Groq account')
+      openAiApi: newCredential('Groq account (OpenAI)')
     },
-    position: [1800, 500]
+    position: [1920, 500]
   }
 });
 
@@ -149,7 +176,7 @@ const summarizeWithGroq = node({
     name: 'Generuj streszczenie (Groq)',
     parameters: {
       promptType: 'define',
-      text: expr('Podsumuj ponizszy artykul w jezyku polskim w 5-6 zdaniach. Skup sie na kluczowych wnioskach.\n\nTytul: {{ $("Filtruj i ranking").item.json.title }}\n\nURL: {{ $("Filtruj i ranking").item.json.url }}'),
+      text: expr('Podsumuj ponizszy artykul w jezyku polskim w 5-6 zdaniach. Skup sie na kluczowych wnioskach.\n\nTytul: {{ $json.tytul_en }}\n\nURL: {{ $json.url }}'),
       options: {
         systemMessage: 'Jestes asystentem ktory streszcza artykuly technologiczne w jezyku polskim.'
       }
@@ -157,7 +184,7 @@ const summarizeWithGroq = node({
     subnodes: {
       model: groqModel
     },
-    position: [1800, 300]
+    position: [1920, 300]
   },
   output: [{ output: '' }]
 });
@@ -172,14 +199,14 @@ const formatResults = node({
       language: 'javaScript',
       jsCode: `
 var translations = $('Tlumacz tytul').all().map(function(i) { return i.json; });
-var originals = $('Filtruj i ranking').all().map(function(i) { return i.json; });
+var articleData = $('Dolacz dane artykulu').all().map(function(i) { return i.json; });
 var summaries = $('Generuj streszczenie (Groq)').all().map(function(i) { return i.json; });
 
 var result = [];
-for (var idx = 0; idx < originals.length; idx++) {
-  var orig = originals[idx];
+for (var idx = 0; idx < articleData.length; idx++) {
+  var orig = articleData[idx];
   var trans = translations[idx] || {};
-  var translatedText = (trans.responseData && trans.responseData.translatedText) || orig.title;
+  var translatedText = (trans.responseData && trans.responseData.translatedText) || orig.tytul_en;
 
   var summary = summaries[idx] || {};
   var streszczenie = '';
@@ -191,17 +218,17 @@ for (var idx = 0; idx < originals.length; idx++) {
     streszczenie = summary.text;
   }
   if (!streszczenie) {
-    console.log('Brak streszczenia dla idx ' + idx + ' | tytul: ' + orig.title + ' | groq response:', JSON.stringify(summary));
+    console.log('Brak streszczenia dla idx ' + idx + ' | tytul: ' + orig.tytul_en + ' | groq response:', JSON.stringify(summary));
   }
 
   result.push({
     json: {
       tytul_pl: translatedText,
-      tytul_en: orig.title,
-      url: orig.url || 'https://news.ycombinator.com/item?id=' + orig.id,
-      punkty: orig.score || 0,
-      autor: orig.author || 'unknown',
-      komentarze: orig.comments || 0,
+      tytul_en: orig.tytul_en,
+      url: orig.url,
+      punkty: orig.punkty,
+      autor: orig.autor,
+      komentarze: orig.komentarze,
       data: new Date().toISOString().split('T')[0],
       streszczenie_pl: streszczenie
     }
@@ -323,5 +350,5 @@ export default workflow('hn-top10-groq', 'HN Top 10 - codziennie 08:00 (Groq)')
   .to(filterAndRank)
   .to(batchNode
     .onDone(formatResults.to(saveToTable).to(buildHtmlEmail).to(sendEmail))
-    .onEachBatch(translateTitle.to(summarizeWithGroq).to(nextBatch(batchNode)))
+    .onEachBatch(translateTitle.to(mergeData).to(summarizeWithGroq).to(nextBatch(batchNode)))
   );
