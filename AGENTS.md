@@ -23,8 +23,8 @@ Ten projekt łączy model językowy z instancją n8n przez protokół MCP.
 
 | Workflow | ID w n8n | Status | Opis |
 |---|---|---|---|
-| HN Top 10 — Groq | `nicN5lZNI0LSb7Jz` | ✅ Aktywny | Główny workflow, codziennie o 08:00. Groq/Llama 3.3 70B. |
-| HN Top 10 — Gemini | `KmPY4nLRoV6JwYmz` | 🗑️ Usunięty z serwera | Alternatywa Gemini. Kod źródłowy zachowany lokalnie (`workflows/hn-top10-gemini/workflow.ts`). |
+| HN Top 10 — Groq | `nicN5lZNI0LSb7Jz` | ✅ Aktywny | Główny workflow, pon/śr/sob o 08:00. Groq/Llama 3.3 70B. |
+| HN Top 10 — Gemini | `KmPY4nLRoV6JwYmz` | 🗑️ Usunięty z serwera | Alternatywa Gemini. Kod źródłowy usunięty lokalnie. |
 
 ## Dokumentacja
 
@@ -34,6 +34,43 @@ Ten projekt łączy model językowy z instancją n8n przez protokół MCP.
 ---
 
 ## Historia sesji — problemy i rozwiązania
+
+### Sesja 2026-05-15: Deduplikacja artykułów, harmonogram 3×/tydz, usunięcie Gemini
+
+**Cel:** Eliminacja duplikatów w mailu, dodanie dedupu miedzydniowego, zmiana harmonogramu z daily na pon/śr/sob.
+
+#### Problem: Duplikaty tych samych artykułów w jednym mailu
+
+**Objaw:** W mailu pojawiały się wielokrotnie te same artykuły (np. "Codex w ChatGPT mobile" 3 razy) z różnymi punktami, od różnych autorów.
+
+**Przyczyna:** Różni użytkownicy HN wysyłają ten sam link. Filtr słow kluczowych łapał wszystkie wersje.
+
+**Fix:** Dodano dedup przez znormalizowany tytuł w `Filtruj i ranking`:
+```javascript
+function normalizeTitle(title) {
+  return title.toLowerCase()
+    .replace(/^(show|ask|tell)\s+hn:\s*/i, '')
+    .replace(/^(openai'?s?|the|a|an)\s+/i, '')
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+}
+```
+Zostaje tylko wersja z najwyższym score.
+
+#### Problem: Brak dedupu miedzydniowego
+
+**Objaw:** Artykuł wysłany wczoraj mógł pojawić się ponownie dzisiaj.
+
+**Fix:** Dodano node `Filtruj nowe (bez duplikatow)` — `dataTable` z operacją `rowNotExists` między `filterAndRank` a `batchNode`. Sprawdza czy URL artykułu istnieje już w Data Table. Jeśli tak, artykuł jest odfiltrowany.
+
+#### Zmiana harmonogramu
+
+**Fix:** `daysInterval: 1` → `cronExpression: '0 8 * * 1,3,6'` (poniedziałek, środa, sobota o 08:00).
+
+#### Inne zmiany
+
+- Usunięto lokalny folder `workflows/hn-top10-gemini/` (workflow już dawno usunięty z serwera)
+- Agent `@dok` przeniesiony z `opencode.json` do `.opencode/agents/dok.md`
+- 15→16 nodów (dodano dedupHistory)
 
 ### Sesja 2026-05-14: Naprawa pustych streszczeń i data alignment w splitInBatches
 

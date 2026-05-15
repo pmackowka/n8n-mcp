@@ -7,11 +7,11 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 ## Szablony
 
 | # | Nazwa workflow | ID w n8n | Trigger | Węzły | Wymagane kredencjały | Status | Data dodania |
-|---|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|---|---|
 | 1 | **Sieć Agentów AI (Gemini)** | `5OnOB4FwZMK8uMNl` | Chat Trigger | 11 | Google Gemini, Gmail, Google Calendar, Tavily | ❌ | 2026-05-07 |
 | 2 | **Sieć Agentów AI (Deepseek)** | `Sus7cpF3VSkhwbgl` | Chat Trigger | 11 | DeepSeek, Gmail (GCP), Google Calendar (GCP), Tavily | ❌ | 2026-05-06 |
 | 3 | **Query GA4 data with Google Gemini AI in a Slack channel** | `b6dM5vmG0oZ0z8sh` | Slack Trigger | 8 | Slack, Google Analytics OAuth2, Google Gemini (AI Studio) | ❌ | 2026-05-07 |
-| 4 | **HN Top 10 — codziennie 08:00 (Groq)** | `nicN5lZNI0LSb7Jz` | Schedule Trigger (daily) | 15 | Groq account (OpenAI), Gmail account (GCP) | ✅ | 2026-05-14 |
+| 4 | **HN Top 10 — pon/śr/sob 08:00 (Groq)** | `nicN5lZNI0LSb7Jz` | Schedule Trigger (3x/tydz: pon, śr, sob) | 16 | Groq account (OpenAI), Gmail account (GCP) | ✅ | 2026-05-14 |
 
 ---
 
@@ -45,13 +45,14 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 - **Pamięć:** Buffer Window (10 kontekstów, klucz własny)
 - **Kod źródłowy:** brak (zaimportowany z szablonu n8n)
 
-### 4. HN Top 10 — codziennie 08:00 (Groq)
-- **Status:** ✅ **Główny, aktywny workflow.** Opublikowany na serwerze z aktywnym triggerem codziennym.
+### 4. HN Top 10 — pon/śr/sob 08:00 (Groq)
+- **Status:** ✅ **Główny, aktywny workflow.** Opublikowany na serwerze. Trigger 3×/tydzień (pon, śr, sob) o 08:00.
 - **Źródło:** Zastępuje DeepSeek i Gemini jako główny workflow. Darmowy model przez Groq.
-- **Struktura:** Schedule (daily) → HTTP (topstories) → HTTP (detale HN ×500, batch 10) → Code (filtr+ranking) → **splitInBatches(1)** → Code (saveOriginal) → HTTP (tłumaczenie ×10) → Code (mergeData) → **AI Agent | Groq / Llama 3.3 70B (streszczenie ×10)** → **Code (prepareBatchResult)** → Code (formatowanie) → Data Table (zapis) → Code (HTML email) → Gmail (wysyłka)
-- **Trigger:** Codziennie o 08:00
+- **Struktura:** Schedule (pn/śr/sb) → HTTP (topstories) → HTTP (detale HN ×500, batch 10) → Code (filtr+ranking+dedup) → **Data Table (rowNotExists, dedup miedzydniowy)** → **splitInBatches(1)** → Code (saveOriginal) → HTTP (tłumaczenie ×10) → Code (mergeData) → **AI Agent | Groq / Llama 3.3 70B (streszczenie ×10)** → **Code (prepareBatchResult)** → Code (formatowanie) → Data Table (zapis) → Code (HTML email) → Gmail (wysyłka)
+- **Trigger:** Poniedziałek, Środa, Sobota o 08:00 (cron: `0 8 * * 1,3,6`)
 - **Filtrowane frazy:** opencode, cloud code, openrouter, openai, codex, antigravity, warpdotdev, gemini, stape_io, n8n
-- **Wyszukiwanie:** Top 500 HN → fetch szczegółów wszystkich 500 (batch 10) → filtr po tytułach → sort po score → top **10**
+- **Wyszukiwanie:** Top 500 HN → fetch szczegółów wszystkich 500 (batch 10) → filtr po tytułach → **dedup po znormalizowanym tytule** → sort po score → top **10**
+- **Deduplikacja miedzydniowa:** `rowNotExists` na Data Table — sprawdza czy URL artykułu był już wysłany; jeśli tak, artykuł jest pomijany
 - **Tłumaczenie:** MyMemory API (EN→PL), z fallbackiem do oryginalnego tytułu
 - **Streszczenie:** Groq / Llama 3.3 70B przez `@n8n/n8n-nodes-langchain.lmChatOpenAi` (custom base URL) + `@n8n/n8n-nodes-langchain.agent`. Generuje 5-6 zdaniowe polskie podsumowanie każdego artykułu.
 - **E-mail:** Gmail wysyła sformatowany HTML na `pmackowka@gmail.com` z dopiskiem "(Groq)" w temacie i nagłówku
@@ -59,7 +60,7 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 - **Output:** Data Table (ta sama co #4: `Iy9nbjya69dnFGOf`)
 - **Kredencjały:** Groq account przez `openAiApi` (Base URL `https://api.groq.com/openai/v1`), Gmail account (GCP) przez `gmailOAuth2`
 - **Kod źródłowy:** `workflows/hn-top10-groq/workflow.ts`
-- **Data dodania:** 2026-05-14 (Ostatnia aktualizacja: fix data alignment onDone)
+- **Data dodania:** 2026-05-14 (Ostatnia aktualizacja: 2026-05-15 — harmonogram 3x/tydz, dedup w-batch i miedzydniowy, usuniecie Gemini folder)
 
 ---
 
@@ -67,13 +68,14 @@ Plik śledzący wszystkie workflowy załadowane na instancję n8n na Hostingerze
 
 | Dawny # | Workflow | ID | Data usunięcia | Powód |
 |---|---|---|---|---|
-| 4 | **HN Top 10 — codziennie 08:00 (Gemini)** | `KmPY4nLRoV6JwYmz` | 2026-05-14 | Zastąpiony przez Groq. Kod źródłowy w `workflows/hn-top10-gemini/workflow.ts` |
+| 4 | **HN Top 10 — codziennie 08:00 (Gemini)** | `KmPY4nLRoV6JwYmz` | 2026-05-14 | Zastąpiony przez Groq. Kod źródłowy usunięty lokalnie. |
 | — | **HN Top 10 — codziennie 08:00 (DeepSeek)** | `D82114KdzodYpPvP` | 2026-05-14 | Płatny model, niepotrzebny. Zarchiwizowany na serwerze. |
 
 ## Zmiany
 
 | Data | Opis |
 |---|---|
+| 2026-05-15 | Zmiana harmonogramu z daily na 3×/tydz (pon, śr, sob). Dodano dedup wewnątrzbatchowy (normalizacja tytułów) i miedzydniowy (rowNotExists). Usunięto lokalny folder `hn-top10-gemini`. 15→16 nodów. |
 | 2026-05-14 | Usunięto #4 (HN Gemini) z rejestru — workflow usunięty z serwera. Przenumerowanie #5→#4 (Groq). Dodano kolumnę Status i sekcję "Usunięte z serwera". Dark mode + większe fonty w HTML emailu. |
 | 2026-05-14 | **Naprawa data alignment w splitInBatches:** dodano `saveOriginal` (fix cross-batch refs) i `prepareBatchResult` (fix $().all() w onDone). Unpublish Gemini, archive DeepSeek. 13→15 nodes w obu workflowach. |
 | 2026-05-14 | Przebudowano #4 (Gemini) i #5 (Groq): usunięcie `urlContext`, maxTokens 1024→4096, prompt 2-3→5-6 zdań. Dodano Groq (darmowy) zamiast DeepSeek (płatny). |

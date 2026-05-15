@@ -4,14 +4,12 @@ const scheduleTrigger = trigger({
   type: 'n8n-nodes-base.scheduleTrigger',
   version: 1.3,
   config: {
-    name: 'Codziennie 08:00',
+    name: 'Pon/Sr/Sob 08:00',
     parameters: {
       rule: {
         interval: [{
-          field: 'days',
-          daysInterval: 1,
-          triggerAtHour: 8,
-          triggerAtMinute: 0
+          field: 'cronExpression',
+          expression: '0 8 * * 1,3,6'
         }]
       }
     },
@@ -72,6 +70,15 @@ const filterAndRank = node({
       jsCode: `
 var keywords = ['opencode', 'cloud code', 'openrouter', 'openai', 'codex', 'antigravity', 'warpdotdev', 'gemini', 'stape_io', 'n8n'];
 
+function normalizeTitle(title) {
+  return title
+    .toLowerCase()
+    .replace(/^(show|ask|tell)\s+hn:\s*/i, '')
+    .replace(/^(openai'?s?|the|a|an)\s+/i, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
 var stories = $input.all().map(function(item) { return item.json; });
 
 var filtered = [];
@@ -85,8 +92,19 @@ for (var s = 0; s < stories.length; s++) {
   }
 }
 
-filtered.sort(function(a, b) { return (b.score || 0) - (a.score || 0); });
-var top10 = filtered.slice(0, 10);
+// dedup by normalized title (keep highest scored version)
+var seen = {};
+var deduped = [];
+for (var f = 0; f < filtered.length; f++) {
+  var key = normalizeTitle(filtered[f].title || '');
+  if (key && !seen[key]) {
+    seen[key] = true;
+    deduped.push(filtered[f]);
+  }
+}
+
+deduped.sort(function(a, b) { return (b.score || 0) - (a.score || 0); });
+var top10 = deduped.slice(0, 10);
 
 var result = [];
 for (var t = 0; t < top10.length; t++) {
@@ -106,6 +124,29 @@ return result;
     position: [960, 300]
   },
   output: [{ title: '', url: '', score: 0, author: '', comments: 0 }]
+});
+
+const dedupHistory = node({
+  type: 'n8n-nodes-base.dataTable',
+  version: 1.1,
+  config: {
+    name: 'Filtruj nowe (bez duplikatow)',
+    parameters: {
+      resource: 'row',
+      operation: 'rowNotExists',
+      dataTableId: { mode: 'id', value: 'Iy9nbjya69dnFGOf' },
+      matchType: 'allConditions',
+      filters: {
+        conditions: [{
+          keyName: 'url',
+          condition: 'eq',
+          keyValue: expr('{{ $json.url }}')
+        }]
+      }
+    },
+    position: [1160, 300]
+  },
+  output: [{ url: '', title: '', score: 0, author: '', comments: 0 }]
 });
 
 const saveOriginal = node({
@@ -312,7 +353,7 @@ var html = '<html><head><style>'
 + '</style></head>'
 + '<body bgcolor="#ffffff" text="#24292f">'
 + '<h1>HN Top 10 \\u2014 ' + date + ' (Groq)</h1>'
-+ '<p class="meta">Najciekawsze artykuly z Hacker News wybrane z top 500.</p>'
++ '<p class="meta">Najciekawsze artykuly z Hacker News wybrane z top 500. Pn/Śr/Sb o 08:00.</p>'
 + '<hr>';
 
 for (var i = 0; i < items.length; i++) {
@@ -328,7 +369,7 @@ for (var i = 0; i < items.length; i++) {
 }
 
 html += '<hr>'
-+ '<p class="footer">Wygenerowano automatycznie przez n8n workflow codziennie o 08:00 (Groq).</p>'
++ '<p class="footer">Wygenerowano automatycznie przez n8n workflow pon/śr/sob o 08:00 (Groq).</p>'
 + '</body></html>';
 
 function escapeHtml(str) {
@@ -379,11 +420,12 @@ const batchNode = splitInBatches({
   }
 });
 
-export default workflow('hn-top10-groq', 'HN Top 10 - codziennie 08:00 (Groq)')
+export default workflow('hn-top10-groq', 'HN Top 10 - pon/śr/sob 08:00 (Groq)')
   .add(scheduleTrigger)
   .to(fetchTopStories)
   .to(fetchStoryDetails)
   .to(filterAndRank)
+  .to(dedupHistory)
   .to(batchNode
     .onDone(formatResults.to(saveToTable).to(buildHtmlEmail).to(sendEmail))
     .onEachBatch(saveOriginal.to(translateTitle).to(mergeData).to(summarizeWithGroq).to(prepareBatchResult).to(nextBatch(batchNode)))
